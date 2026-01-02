@@ -13,6 +13,16 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  // Store BuildContext for safe use in async callbacks
+  BuildContext? _dialogContext;
+
+  @override
+  void dispose() {
+    // Clear the stored context when widget is disposed
+    _dialogContext = null;
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final authService = Provider.of<AuthService>(context);
@@ -56,9 +66,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       icon: Icon(Icons.more_vert, color: Colors.white),
                       onSelected: (value) {
                         if (value == 'logout') {
-                          _showLogoutConfirmation();
+                          _showLogoutConfirmation(context);
                         } else if (value == 'profile') {
-                          _showProfileDialog(authService);
+                          _showProfileDialog(context, authService);
                         }
                       },
                       itemBuilder: (context) => [
@@ -122,7 +132,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 SizedBox(height: 20),
 
                 // Quick actions grid
-                _buildQuickActions(),
+                _buildQuickActions(context),
 
                 SizedBox(height: 30),
 
@@ -141,6 +151,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     TextButton(
                       onPressed: () {
                         _showFeatureMessage(
+                          context,
                           'Explore All',
                           'Browse all destinations coming soon!',
                         );
@@ -159,7 +170,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 SizedBox(height: 20),
 
                 // Featured destinations list
-                _buildFeaturedDestinations(),
+                _buildFeaturedDestinations(context),
 
                 SizedBox(height: 30),
 
@@ -173,6 +184,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: InkWell(
                       onTap: () {
                         _showFeatureMessage(
+                          context,
                           'AI Planner',
                           'AI Trip Planner coming soon!',
                         );
@@ -228,7 +240,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildQuickActions() {
+  Widget _buildQuickActions(BuildContext context) {
     return GridView.count(
       shrinkWrap: true,
       physics: NeverScrollableScrollPhysics(),
@@ -243,6 +255,7 @@ class _HomeScreenState extends State<HomeScreen> {
           icon: Icons.auto_awesome,
           color: Colors.white,
           onTap: () => _showFeatureMessage(
+            context,
             'AI Planner',
             'Generate smart itineraries with AI',
           ),
@@ -253,6 +266,7 @@ class _HomeScreenState extends State<HomeScreen> {
           icon: Icons.explore,
           color: Colors.white,
           onTap: () => _showFeatureMessage(
+            context,
             'Explore',
             'Discover amazing places in Sri Lanka',
           ),
@@ -263,6 +277,7 @@ class _HomeScreenState extends State<HomeScreen> {
           icon: Icons.chat,
           color: Colors.white,
           onTap: () => _showFeatureMessage(
+            context,
             'Chat Assistant',
             'Get instant travel assistance',
           ),
@@ -273,6 +288,7 @@ class _HomeScreenState extends State<HomeScreen> {
           icon: Icons.map,
           color: Colors.white,
           onTap: () => _showFeatureMessage(
+            context,
             'Offline Maps',
             'Download maps for offline use',
           ),
@@ -281,7 +297,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildFeaturedDestinations() {
+  Widget _buildFeaturedDestinations(BuildContext context) {
     final featuredDestinations = [
       {
         'name': 'Sigiriya Rock',
@@ -321,7 +337,7 @@ class _HomeScreenState extends State<HomeScreen> {
             location: destination['location'] as String,
             rating: destination['rating'] as double,
             onTap: () {
-              _showDestinationDetail(destination['name'] as String);
+              _showDestinationDetail(context, destination['name'] as String);
             },
           );
         },
@@ -329,198 +345,211 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _showFeatureMessage(String title, String message) {
+  void _showFeatureMessage(BuildContext context, String title, String message) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Color(0xFF1E3A8A),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Icon(Icons.info_outline, color: Color(0xFF00DFD8), size: 24),
-            SizedBox(width: 10),
-            Text(
-              title,
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-        content: Text(message, style: TextStyle(color: Colors.white70)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('OK', style: TextStyle(color: Color(0xFF00DFD8))),
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: Color(0xFF1E3A8A),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
           ),
-        ],
-      ),
-    );
-  }
-
-  void _showDestinationDetail(String name) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Color(0xFF1E3A8A),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          name,
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              height: 150,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                gradient: LinearGradient(
-                  colors: [Color(0xFF007CF0), Color(0xFF00DFD8)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+          title: Row(
+            children: [
+              Icon(Icons.info_outline, color: Color(0xFF00DFD8), size: 24),
+              SizedBox(width: 10),
+              Text(
+                title,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              child: Icon(Icons.landscape, color: Colors.white, size: 50),
-            ),
-            SizedBox(height: 16),
-            Text(
-              'Discover the beauty of $name with our AI-powered travel guide.',
-              style: TextStyle(color: Colors.white70),
+            ],
+          ),
+          content: Text(message, style: TextStyle(color: Colors.white70)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('OK', style: TextStyle(color: Color(0xFF00DFD8))),
             ),
           ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Close', style: TextStyle(color: Colors.white70)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _showFeatureMessage(
-                'Add to Trip',
-                '$name added to your itinerary!',
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Color(0xFF00DFD8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
-              ),
-            ),
-            child: Text('Add to Trip', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  void _showProfileDialog(AuthService authService) {
+  void _showDestinationDetail(BuildContext context, String name) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Color(0xFF1E3A8A),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Icon(Icons.person, color: Color(0xFF00DFD8), size: 28),
-            SizedBox(width: 10),
-            Text(
-              'Profile',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 22,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: Color(0xFF1E3A8A),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Text(
+            name,
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                height: 150,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF007CF0), Color(0xFF00DFD8)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: Icon(Icons.landscape, color: Colors.white, size: 50),
               ),
+              SizedBox(height: 16),
+              Text(
+                'Discover the beauty of $name with our AI-powered travel guide.',
+                style: TextStyle(color: Colors.white70),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Close', style: TextStyle(color: Colors.white70)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _showFeatureMessage(
+                  context,
+                  'Add to Trip',
+                  '$name added to your itinerary!',
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF00DFD8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+              ),
+              child: Text('Add to Trip', style: TextStyle(color: Colors.white)),
             ),
           ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ListTile(
-              leading: CircleAvatar(
-                radius: 30,
-                backgroundColor: Color(0xFF00DFD8),
-                child: Text(
-                  _getUserInitials(authService.userName),
+        );
+      },
+    );
+  }
+
+  void _showProfileDialog(BuildContext context, AuthService authService) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: Color(0xFF1E3A8A),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.person, color: Color(0xFF00DFD8), size: 28),
+              SizedBox(width: 10),
+              Text(
+                'Profile',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 22,
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ListTile(
+                leading: CircleAvatar(
+                  radius: 30,
+                  backgroundColor: Color(0xFF00DFD8),
+                  child: Text(
+                    _getUserInitials(authService.userName),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                title: Text(
+                  authService.userName ?? 'Traveler',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-              ),
-              title: Text(
-                authService.userName ?? 'Traveler',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+                subtitle: Text(
+                  authService.userEmail ?? 'No email',
+                  style: TextStyle(color: Colors.white70),
                 ),
               ),
-              subtitle: Text(
-                authService.userEmail ?? 'No email',
-                style: TextStyle(color: Colors.white70),
-              ),
-            ),
-            SizedBox(height: 20),
-            Container(
-              padding: EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Travel Stats',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF00DFD8),
-                      fontSize: 16,
+              SizedBox(height: 20),
+              Container(
+                padding: EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Travel Stats',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF00DFD8),
+                        fontSize: 16,
+                      ),
                     ),
+                    SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _buildStatItem('Trips', '0'),
+                        _buildStatItem('Places', '0'),
+                        _buildStatItem('Badges', '0'),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Color(0xFF00DFD8),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  'Close',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
                   ),
-                  SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildStatItem('Trips', '0'),
-                      _buildStatItem('Places', '0'),
-                      _buildStatItem('Badges', '0'),
-                    ],
-                  ),
-                ],
+                ),
               ),
             ),
           ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              decoration: BoxDecoration(
-                color: Color(0xFF00DFD8),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                'Close',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -550,92 +579,106 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _showLogoutConfirmation() {
-    final authService = Provider.of<AuthService>(context, listen: false);
-
+  void _showLogoutConfirmation(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Color(0xFF1E3A8A),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Icon(Icons.logout, color: Colors.orange, size: 24),
-            SizedBox(width: 10),
-            Text(
-              'Logout',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-        content: Text(
-          'Are you sure you want to logout?',
-          style: TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel', style: TextStyle(color: Colors.white70)),
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: Color(0xFF1E3A8A),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
           ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              try {
-                await authService.signOut();
-
-                // Show success message
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    backgroundColor: Colors.green,
-                    content: Row(
-                      children: [
-                        Icon(Icons.check_circle, color: Colors.white),
-                        SizedBox(width: 10),
-                        Text('Logged out successfully'),
-                      ],
-                    ),
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                );
-
-                // Navigate to login screen
-                await Future.delayed(Duration(milliseconds: 500));
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (context) => LoginScreen()),
-                  (route) => false,
-                );
-              } catch (error) {
-                _showErrorDialog('Logout Failed', error.toString());
-              }
-            },
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              decoration: BoxDecoration(
-                color: Colors.orange,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
+          title: Row(
+            children: [
+              Icon(Icons.logout, color: Colors.orange, size: 24),
+              SizedBox(width: 10),
+              Text(
                 'Logout',
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+          content: Text(
+            'Are you sure you want to logout?',
+            style: TextStyle(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel', style: TextStyle(color: Colors.white70)),
+            ),
+            TextButton(
+              onPressed: () async {
+                // Close the dialog first
+                Navigator.pop(context);
+
+                try {
+                  // Get authService using the current context
+                  final authService = Provider.of<AuthService>(
+                    context,
+                    listen: false,
+                  );
+
+                  // Sign out
+                  await authService.signOut();
+
+                  // Show success message
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      backgroundColor: Colors.green,
+                      content: Row(
+                        children: [
+                          Icon(Icons.check_circle, color: Colors.white),
+                          SizedBox(width: 10),
+                          Text('Logged out successfully'),
+                        ],
+                      ),
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  );
+
+                  // Navigate to login screen IMMEDIATELY
+                  // Use Future.microtask for immediate navigation
+                  Future.microtask(() {
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (context) => LoginScreen()),
+                      (route) => false,
+                    );
+                  });
+                } catch (error) {
+                  // Handle error
+                  _showErrorDialog(context, 'Logout Failed', error.toString());
+                }
+              },
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.orange,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  'Logout',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
-  void _showErrorDialog(String title, String message) {
+  void _showErrorDialog(BuildContext context, String title, String message) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(

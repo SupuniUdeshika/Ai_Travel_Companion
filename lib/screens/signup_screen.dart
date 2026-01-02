@@ -50,11 +50,8 @@ class _SignupScreenState extends State<SignupScreen> {
         _nameController.text.trim(),
       );
 
-      print('✅ Sign up successful, showing success dialog...');
-      _showSuccessDialog(
-        'Account Created Successfully! 🎉',
-        'Welcome to AI Travel Companion! Your account has been created and you can now start exploring beautiful destinations in Sri Lanka.',
-      );
+      print('✅ Sign up successful, showing verification dialog...');
+      _showVerificationDialog();
     } catch (error) {
       print('❌ Sign up error: $error');
       _showErrorDialog('Sign Up Failed', error.toString());
@@ -63,20 +60,20 @@ class _SignupScreenState extends State<SignupScreen> {
     }
   }
 
-  void _showSuccessDialog(String title, String message) {
+  void _showVerificationDialog() {
     showDialog(
       context: context,
-      barrierDismissible: false, // User must tap button to close
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
         backgroundColor: Color(0xFF1E3A8A),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
-            Icon(Icons.check_circle, color: Colors.green, size: 28),
+            Icon(Icons.verified_user, color: Color(0xFF00DFD8), size: 28),
             SizedBox(width: 12),
             Expanded(
               child: Text(
-                title,
+                'Verify Your Email 📧',
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -91,10 +88,15 @@ class _SignupScreenState extends State<SignupScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              message,
+              'Your account has been created successfully! 🎉',
               style: TextStyle(color: Colors.white70, fontSize: 16),
             ),
-            SizedBox(height: 20),
+            SizedBox(height: 16),
+            Text(
+              'We have sent a verification email to:',
+              style: TextStyle(color: Colors.white, fontSize: 14),
+            ),
+            SizedBox(height: 8),
             Container(
               padding: EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -103,14 +105,63 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline, color: Color(0xFF00DFD8), size: 20),
-                  SizedBox(width: 8),
+                  Icon(Icons.email, color: Color(0xFF00DFD8), size: 20),
+                  SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Your data has been saved securely',
-                      style: TextStyle(color: Colors.white70, fontSize: 14),
+                      _emailController.text,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
+                ],
+              ),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Please check your email and click the verification link to activate your account.',
+              style: TextStyle(color: Colors.white70, fontSize: 14),
+            ),
+            SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.orange, size: 16),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'You must verify your email before logging in.',
+                    style: TextStyle(color: Colors.orange, fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 20),
+            Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Color(0xFF00DFD8).withOpacity(0.3)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '📋 Next Steps:',
+                    style: TextStyle(
+                      color: Color(0xFF00DFD8),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  _buildStep('1. Check your email inbox', Icons.check),
+                  _buildStep('2. Open the verification email', Icons.email),
+                  _buildStep('3. Click the verification link', Icons.link),
+                  _buildStep('4. Return to the app and login', Icons.login),
                 ],
               ),
             ),
@@ -119,10 +170,10 @@ class _SignupScreenState extends State<SignupScreen> {
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.pop(context); // Close dialog
+              Navigator.pop(context);
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (context) => HomeScreen()),
+                MaterialPageRoute(builder: (context) => LoginScreen()),
               );
             },
             child: Container(
@@ -136,7 +187,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 borderRadius: BorderRadius.circular(25),
               ),
               child: Text(
-                'Start Exploring →',
+                'Go to Login',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 16,
@@ -145,6 +196,19 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStep(String text, IconData icon) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, color: Color(0xFF00DFD8), size: 16),
+          SizedBox(width: 8),
+          Text(text, style: TextStyle(color: Colors.white70, fontSize: 13)),
         ],
       ),
     );
@@ -375,7 +439,37 @@ class _SignupScreenState extends State<SignupScreen> {
                     },
                   ),
 
-                  SizedBox(height: 30),
+                  SizedBox(height: 10),
+
+                  // Email verification info
+                  Container(
+                    padding: EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.verified_user,
+                          color: Color(0xFF00DFD8),
+                          size: 20,
+                        ),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'A verification email will be sent to your email address',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  SizedBox(height: 20),
 
                   // Create Account button
                   Container(

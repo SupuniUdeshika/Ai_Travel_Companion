@@ -36,10 +36,91 @@ class _LoginScreenState extends State<LoginScreen> {
         'Welcome back to AI Travel Companion',
       );
     } catch (error) {
-      _showErrorDialog('Login Failed', error.toString());
+      // Special handling for email verification errors
+      String errorMessage = error.toString();
+      if (errorMessage.contains('verify your email')) {
+        // Show verification required dialog
+        _showVerificationRequiredDialog(errorMessage);
+      } else {
+        _showErrorDialog('Login Failed', errorMessage);
+      }
     } finally {
       setState(() => _isLoading = false);
     }
+  }
+
+  void _showVerificationRequiredDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Color(0xFF1E3A8A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.verified_user, color: Color(0xFF00DFD8), size: 28),
+            SizedBox(width: 12),
+            Text(
+              'Email Verification Required',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              message,
+              style: TextStyle(color: Colors.white70, fontSize: 16),
+            ),
+            SizedBox(height: 16),
+            Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.orange, size: 20),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Please check your email and verify your account before logging in.',
+                      style: TextStyle(color: Colors.white70, fontSize: 14),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+              decoration: BoxDecoration(
+                color: Color(0xFF00DFD8),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                'OK',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _googleSignIn() async {

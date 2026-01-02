@@ -17,11 +17,15 @@ class AuthService with ChangeNotifier {
   String? get userName => _auth.currentUser?.displayName;
   String? get userId => _auth.currentUser?.uid;
 
-  // Save user data to Firestore with better error handling
+  // Email verification status
+  bool get isEmailVerified => _auth.currentUser?.emailVerified ?? false;
+
+  // Save user data to Firestore with email verification status
   Future<void> _saveUserToFirestore(
     User user, {
     String? name,
     String? provider = 'email',
+    bool isVerified = false,
   }) async {
     try {
       print('💾 Attempting to save user to Firestore: ${user.uid}');
@@ -32,11 +36,12 @@ class AuthService with ChangeNotifier {
         'displayName': name ?? user.displayName ?? 'Travel Explorer',
         'photoURL': user.photoURL,
         'phoneNumber': user.phoneNumber,
-        'emailVerified': user.emailVerified,
+        'emailVerified': isVerified,
         'createdAt': FieldValue.serverTimestamp(),
         'lastLoginAt': FieldValue.serverTimestamp(),
         'provider': provider,
         'updatedAt': FieldValue.serverTimestamp(),
+        'status': isVerified ? 'active' : 'pending_verification',
       };
 
       print('📝 User data to save: $userData');
@@ -64,6 +69,51 @@ class AuthService with ChangeNotifier {
     }
   }
 
+  // Send verification email
+  Future<void> sendVerificationEmail() async {
+    try {
+      if (_auth.currentUser == null) {
+        throw 'No user logged in';
+      }
+
+      print('📧 Sending verification email to ${_auth.currentUser!.email}');
+      await _auth.currentUser!.sendEmailVerification();
+      print('✅ Verification email sent successfully');
+
+      // Update verification status in Firestore
+      await _saveUserToFirestore(_auth.currentUser!, isVerified: false);
+    } catch (error) {
+      print('❌ Error sending verification email: $error');
+      throw _getAuthErrorMessage(error);
+    }
+  }
+
+  // Check and refresh verification status
+  Future<bool> checkEmailVerification() async {
+    try {
+      if (_auth.currentUser == null) {
+        return false;
+      }
+
+      // Reload user to get latest verification status
+      await _auth.currentUser!.reload();
+      final user = _auth.currentUser;
+      final isVerified = user?.emailVerified ?? false;
+
+      if (isVerified) {
+        // Update Firestore with verified status
+        await _saveUserToFirestore(user!, isVerified: true);
+      }
+
+      notifyListeners();
+      return isVerified;
+    } catch (error) {
+      print('❌ Error checking email verification: $error');
+      return false;
+    }
+  }
+
+  // Login with email verification check
   Future<User?> signInWithEmailAndPassword(
     String email,
     String password,
@@ -78,18 +128,54 @@ class AuthService with ChangeNotifier {
 
       print('✅ Email authentication successful: ${result.user!.uid}');
 
-      // Update last login time
-      await _saveUserToFirestore(result.user!, provider: 'email');
+      // Check if email is verified
+      final user = result.user;
+      if (user == null) {
+        throw 'User authentication failed';
+      }
+
+      if (!user.emailVerified) {
+        print('⚠️ User email is not verified: ${user.email}');
+        await user.reload(); // Reload to get latest status
+        final currentUser = _auth.currentUser;
+
+        if (!(currentUser?.emailVerified ?? false)) {
+          // Update Firestore with pending verification status
+          await _saveUserToFirestore(
+            user,
+            provider: 'email',
+            isVerified: false,
+          );
+
+          // Send verification email if not already sent
+          try {
+            await user.sendEmailVerification();
+            print('📧 Verification email sent to ${user.email}');
+          } catch (e) {
+            print('⚠️ Could not send verification email: $e');
+          }
+
+          throw 'Please verify your email address before logging in. A verification email has been sent to ${user.email}';
+        }
+      }
+
+      // Update last login time and verification status
+      await _saveUserToFirestore(
+        user,
+        provider: 'email',
+        isVerified: user.emailVerified,
+      );
 
       notifyListeners();
       print('✅ Email sign in completed successfully');
-      return result.user;
+      return user;
     } catch (error) {
       print('❌ Login Error: $error');
       throw _getAuthErrorMessage(error);
     }
   }
 
+  // Sign up with email verification
   Future<User?> signUpWithEmailAndPassword(
     String email,
     String password,
@@ -115,16 +201,29 @@ class AuthService with ChangeNotifier {
         await result.user!.reload();
         print('✅ User profile updated');
 
-        // Step 3: Save user data to Firestore
-        print('💾 Saving user data to Firestore...');
-        await _saveUserToFirestore(result.user!, name: name, provider: 'email');
+        // Step 3: Send verification email
+        print('📧 Sending verification email...');
+        await result.user!.sendEmailVerification();
+        print('✅ Verification email sent to $email');
 
-        // Step 4: Get the updated user
+        // Step 4: Save user data to Firestore with verification status
+        print('💾 Saving user data to Firestore...');
+        await _saveUserToFirestore(
+          result.user!,
+          name: name,
+          provider: 'email',
+          isVerified: false,
+        );
+
+        // Step 5: Get the updated user
+        await result.user!.reload();
         final updatedUser = _auth.currentUser;
-        print('✅ User data saved successfully');
+
+        print('🎉 Sign up process completed successfully');
+        print('📧 Verification email sent to: $email');
+        print('⚠️ User must verify email before logging in');
 
         notifyListeners();
-        print('🎉 Sign up process completed successfully');
         return updatedUser;
       }
 
@@ -202,7 +301,12 @@ class AuthService with ChangeNotifier {
       print('✅ Firebase sign in successful: ${userCredential.user!.uid}');
 
       // Save user data to Firestore
-      await _saveUserToFirestore(userCredential.user!, provider: 'google');
+      // Google users are automatically verified
+      await _saveUserToFirestore(
+        userCredential.user!,
+        provider: 'google',
+        isVerified: true,
+      );
 
       notifyListeners();
       return userCredential.user;
@@ -228,7 +332,12 @@ class AuthService with ChangeNotifier {
       print('✅ Web Google sign in successful: ${userCredential.user?.uid}');
 
       if (userCredential.user != null) {
-        await _saveUserToFirestore(userCredential.user!, provider: 'google');
+        // Google users are automatically verified
+        await _saveUserToFirestore(
+          userCredential.user!,
+          provider: 'google',
+          isVerified: true,
+        );
       }
 
       notifyListeners();
@@ -236,6 +345,26 @@ class AuthService with ChangeNotifier {
     } catch (error) {
       print('❌ Web Google Sign In Error: $error');
       rethrow;
+    }
+  }
+
+  // Resend verification email
+  Future<void> resendVerificationEmail() async {
+    try {
+      if (_auth.currentUser == null) {
+        throw 'No user logged in';
+      }
+
+      if (_auth.currentUser!.emailVerified) {
+        throw 'Email is already verified';
+      }
+
+      print('📧 Resending verification email to ${_auth.currentUser!.email}');
+      await _auth.currentUser!.sendEmailVerification();
+      print('✅ Verification email resent successfully');
+    } catch (error) {
+      print('❌ Error resending verification email: $error');
+      throw _getAuthErrorMessage(error);
     }
   }
 
@@ -310,7 +439,10 @@ class AuthService with ChangeNotifier {
         }
 
         // Update Firestore
-        await _saveUserToFirestore(_auth.currentUser!);
+        await _saveUserToFirestore(
+          _auth.currentUser!,
+          isVerified: _auth.currentUser!.emailVerified,
+        );
 
         await _auth.currentUser!.reload();
         notifyListeners();
@@ -351,23 +483,17 @@ class AuthService with ChangeNotifier {
               'An unexpected error occurred. Please try again.';
       }
     }
+
+    // Handle email verification error messages
+    if (error.toString().contains('verify your email')) {
+      return error.toString();
+    }
+
     return error.toString();
   }
 
   // Stream for real-time auth state changes
   Stream<User?> get authStateChanges => _auth.authStateChanges();
-
-  // Check if email is verified
-  bool get isEmailVerified => _auth.currentUser?.emailVerified ?? false;
-
-  // Send email verification
-  Future<void> sendEmailVerification() async {
-    try {
-      await _auth.currentUser?.sendEmailVerification();
-    } catch (error) {
-      throw _getAuthErrorMessage(error);
-    }
-  }
 
   // Reload user data
   Future<void> reloadUser() async {
