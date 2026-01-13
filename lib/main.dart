@@ -3,6 +3,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'screens/splash_screen.dart';
 import 'services/auth_service.dart';
+import 'package:provider/provider.dart';
+import 'services/destination_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

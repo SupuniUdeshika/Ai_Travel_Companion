@@ -276,278 +276,284 @@ class _SignupScreenState extends State<SignupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor:
+          Colors.transparent, // Important: Make scaffold transparent
       body: Container(
+        width: double.infinity,
+        height: double.infinity,
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF001F3F), Color(0xFF0074D9), Color(0xFF7FDBFF)],
+            colors: [
+              Color(0xFF001F3F),
+              Color(0xFF0074D9),
+              Color.fromARGB(255, 20, 114, 151),
+            ],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
         ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.all(24),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Back button
-                  IconButton(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.all(24),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Back button with top padding for status bar
+                Padding(
+                  padding: EdgeInsets.only(
+                    top: MediaQuery.of(context).padding.top,
+                  ),
+                  child: IconButton(
                     onPressed: () => Navigator.pop(context),
                     icon: Icon(Icons.arrow_back_ios, color: Colors.white),
                     padding: EdgeInsets.zero,
                     alignment: Alignment.centerLeft,
                   ),
+                ),
 
-                  SizedBox(height: 20),
+                SizedBox(height: 20),
 
-                  // Animation
-                  Container(
-                    height: 120,
-                    child: Lottie.asset(
-                      'assets/animations/travel_animation.json',
-                      fit: BoxFit.contain,
-                    ),
+                // Animation
+                Container(
+                  height: 120,
+                  child: Lottie.asset(
+                    'assets/animations/travel_animation.json',
+                    fit: BoxFit.contain,
                   ),
+                ),
 
-                  SizedBox(height: 20),
+                SizedBox(height: 20),
 
-                  // Welcome text
-                  Text(
-                    'Create Account',
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
+                // Welcome text
+                Text(
+                  'Create Account',
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
+                ),
 
-                  SizedBox(height: 8),
+                SizedBox(height: 8),
 
-                  Text(
-                    'Start your travel journey with us',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.white.withOpacity(0.8),
-                    ),
+                Text(
+                  'Start your travel journey with us',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.white.withOpacity(0.8),
                   ),
+                ),
 
-                  SizedBox(height: 40),
+                SizedBox(height: 40),
 
-                  // Name field
-                  CustomTextField(
-                    controller: _nameController,
-                    label: 'Full Name',
-                    prefixIcon: Icons.person_outline,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your full name';
-                      }
-                      if (value.length < 2) {
-                        return 'Name must be at least 2 characters long';
-                      }
-                      if (value.length > 50) {
-                        return 'Name is too long';
-                      }
-                      return null;
+                // Name field
+                CustomTextField(
+                  controller: _nameController,
+                  label: 'Full Name',
+                  prefixIcon: Icons.person_outline,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your full name';
+                    }
+                    if (value.length < 2) {
+                      return 'Name must be at least 2 characters long';
+                    }
+                    if (value.length > 50) {
+                      return 'Name is too long';
+                    }
+                    return null;
+                  },
+                ),
+
+                SizedBox(height: 20),
+
+                // Email field
+                CustomTextField(
+                  controller: _emailController,
+                  label: 'Email Address',
+                  prefixIcon: Icons.email_outlined,
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your email address';
+                    }
+                    if (!value.contains('@') || !value.contains('.')) {
+                      return 'Please enter a valid email address';
+                    }
+                    return null;
+                  },
+                ),
+
+                SizedBox(height: 20),
+
+                // Password field
+                CustomTextField(
+                  controller: _passwordController,
+                  label: 'Password',
+                  prefixIcon: Icons.lock_outline,
+                  obscureText: _obscurePassword,
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                      color: Colors.white.withOpacity(0.7),
+                    ),
+                    onPressed: () {
+                      setState(() => _obscurePassword = !_obscurePassword);
                     },
                   ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter a password';
+                    }
+                    if (value.length < 6) {
+                      return 'Password must be at least 6 characters';
+                    }
+                    if (value.length > 50) {
+                      return 'Password is too long';
+                    }
+                    return null;
+                  },
+                ),
 
-                  SizedBox(height: 20),
+                SizedBox(height: 20),
 
-                  // Email field
-                  CustomTextField(
-                    controller: _emailController,
-                    label: 'Email Address',
-                    prefixIcon: Icons.email_outlined,
-                    keyboardType: TextInputType.emailAddress,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your email address';
-                      }
-                      if (!value.contains('@') || !value.contains('.')) {
-                        return 'Please enter a valid email address';
-                      }
-                      return null;
+                // Confirm Password field
+                CustomTextField(
+                  controller: _confirmPasswordController,
+                  label: 'Confirm Password',
+                  prefixIcon: Icons.lock_outline,
+                  obscureText: _obscureConfirmPassword,
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscureConfirmPassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                      color: Colors.white.withOpacity(0.7),
+                    ),
+                    onPressed: () {
+                      setState(
+                        () =>
+                            _obscureConfirmPassword = !_obscureConfirmPassword,
+                      );
                     },
                   ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please confirm your password';
+                    }
+                    if (value != _passwordController.text) {
+                      return 'Passwords do not match';
+                    }
+                    return null;
+                  },
+                ),
 
-                  SizedBox(height: 20),
+                SizedBox(height: 10),
 
-                  // Password field
-                  CustomTextField(
-                    controller: _passwordController,
-                    label: 'Password',
-                    prefixIcon: Icons.lock_outline,
-                    obscureText: _obscurePassword,
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_off
-                            : Icons.visibility,
-                        color: Colors.white.withOpacity(0.7),
+                // Email verification info
+                Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.verified_user,
+                        color: Color(0xFF00DFD8),
+                        size: 20,
                       ),
-                      onPressed: () {
-                        setState(() => _obscurePassword = !_obscurePassword);
-                      },
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter a password';
-                      }
-                      if (value.length < 6) {
-                        return 'Password must be at least 6 characters';
-                      }
-                      if (value.length > 50) {
-                        return 'Password is too long';
-                      }
-                      return null;
-                    },
-                  ),
-
-                  SizedBox(height: 20),
-
-                  // Confirm Password field
-                  CustomTextField(
-                    controller: _confirmPasswordController,
-                    label: 'Confirm Password',
-                    prefixIcon: Icons.lock_outline,
-                    obscureText: _obscureConfirmPassword,
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscureConfirmPassword
-                            ? Icons.visibility_off
-                            : Icons.visibility,
-                        color: Colors.white.withOpacity(0.7),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'A verification email will be sent to your email address',
+                          style: TextStyle(color: Colors.white70, fontSize: 13),
+                        ),
                       ),
-                      onPressed: () {
-                        setState(
-                          () => _obscureConfirmPassword =
-                              !_obscureConfirmPassword,
-                        );
-                      },
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please confirm your password';
-                      }
-                      if (value != _passwordController.text) {
-                        return 'Passwords do not match';
-                      }
-                      return null;
-                    },
+                    ],
                   ),
+                ),
 
-                  SizedBox(height: 10),
+                SizedBox(height: 20),
 
-                  // Email verification info
-                  Container(
-                    padding: EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.verified_user,
-                          color: Color(0xFF00DFD8),
-                          size: 20,
-                        ),
-                        SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'A verification email will be sent to your email address',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  SizedBox(height: 20),
-
-                  // Create Account button
-                  Container(
-                    width: double.infinity,
-                    height: 70,
-                    child: GradientButton(
-                      onPressed: _isLoading ? null : _signUp,
-                      borderRadius: 20,
-                      child: _isLoading
-                          ? Container(
-                              height: 35,
-                              width: 35,
-                              child: CircularProgressIndicator(
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.white,
-                                ),
-                                strokeWidth: 3,
+                // Create Account button
+                Container(
+                  width: double.infinity,
+                  height: 70,
+                  child: GradientButton(
+                    onPressed: _isLoading ? null : _signUp,
+                    borderRadius: 20,
+                    child: _isLoading
+                        ? Container(
+                            height: 35,
+                            width: 35,
+                            child: CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
                               ),
-                            )
-                          : Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.person_add,
+                              strokeWidth: 3,
+                            ),
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.person_add,
+                                color: Colors.white,
+                                size: 24,
+                              ),
+                              SizedBox(width: 12),
+                              Text(
+                                'CREATE ACCOUNT',
+                                style: TextStyle(
                                   color: Colors.white,
-                                  size: 24,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.2,
                                 ),
-                                SizedBox(width: 12),
-                                Text(
-                                  'CREATE ACCOUNT',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 1.2,
-                                  ),
-                                ),
-                              ],
-                            ),
-                    ),
-                  ),
-
-                  SizedBox(height: 40),
-
-                  // Sign in link
-                  Center(
-                    child: GestureDetector(
-                      onTap: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => LoginScreen(),
-                          ),
-                        );
-                      },
-                      child: RichText(
-                        text: TextSpan(
-                          text: "Already have an account? ",
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.8),
-                            fontSize: 16,
-                          ),
-                          children: [
-                            TextSpan(
-                              text: 'Sign In',
-                              style: TextStyle(
-                                color: Color(0xFF00DFD8),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
+                  ),
+                ),
+
+                SizedBox(height: 40),
+
+                // Sign in link
+                Center(
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (context) => LoginScreen()),
+                      );
+                    },
+                    child: RichText(
+                      text: TextSpan(
+                        text: "Already have an account? ",
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.8),
+                          fontSize: 16,
                         ),
+                        children: [
+                          TextSpan(
+                            text: 'Sign In',
+                            style: TextStyle(
+                              color: Color(0xFF00DFD8),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),

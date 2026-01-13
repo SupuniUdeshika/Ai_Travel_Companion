@@ -225,260 +225,267 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor:
+          Colors.transparent, // Important: Make scaffold transparent
       body: Container(
+        width: double.infinity,
+        height: double.infinity,
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF001F3F), Color(0xFF0074D9), Color(0xFF7FDBFF)],
+            colors: [
+              Color(0xFF001F3F),
+              Color(0xFF0074D9),
+              Color.fromARGB(255, 22, 109, 143),
+            ],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
         ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.all(24),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Back button
-                  IconButton(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.all(24),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Back button with top padding for status bar
+                Padding(
+                  padding: EdgeInsets.only(
+                    top: MediaQuery.of(context).padding.top,
+                  ),
+                  child: IconButton(
                     onPressed: () => Navigator.pop(context),
                     icon: Icon(Icons.arrow_back_ios, color: Colors.white),
                     padding: EdgeInsets.zero,
                     alignment: Alignment.centerLeft,
                   ),
+                ),
 
-                  SizedBox(height: 20),
+                SizedBox(height: 20),
 
-                  // Animation
-                  Container(
-                    height: 150,
-                    child: Lottie.asset(
-                      'assets/animations/travel_animation.json',
-                      fit: BoxFit.contain,
-                    ),
+                // Animation
+                Container(
+                  height: 150,
+                  child: Lottie.asset(
+                    'assets/animations/travel_animation.json',
+                    fit: BoxFit.contain,
                   ),
+                ),
 
-                  SizedBox(height: 20),
+                SizedBox(height: 20),
 
-                  // Welcome text
-                  Text(
-                    'Welcome Back!',
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
+                // Welcome text
+                Text(
+                  'Welcome Back!',
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
+                ),
 
-                  SizedBox(height: 8),
+                SizedBox(height: 8),
 
-                  Text(
-                    'Sign in to continue your journey',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.white.withOpacity(0.8),
-                    ),
+                Text(
+                  'Sign in to continue your journey',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.white.withOpacity(0.8),
                   ),
+                ),
 
-                  SizedBox(height: 40),
+                SizedBox(height: 40),
 
-                  // Email field
-                  CustomTextField(
-                    controller: _emailController,
-                    label: 'Email Address',
-                    prefixIcon: Icons.email_outlined,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your email';
-                      }
-                      if (!value.contains('@')) {
-                        return 'Please enter a valid email';
-                      }
-                      return null;
+                // Email field
+                CustomTextField(
+                  controller: _emailController,
+                  label: 'Email Address',
+                  prefixIcon: Icons.email_outlined,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your email';
+                    }
+                    if (!value.contains('@')) {
+                      return 'Please enter a valid email';
+                    }
+                    return null;
+                  },
+                ),
+
+                SizedBox(height: 20),
+
+                // Password field
+                CustomTextField(
+                  controller: _passwordController,
+                  label: 'Password',
+                  prefixIcon: Icons.lock_outline,
+                  obscureText: _obscurePassword,
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                      color: Colors.white.withOpacity(0.7),
+                    ),
+                    onPressed: () {
+                      setState(() => _obscurePassword = !_obscurePassword);
                     },
                   ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your password';
+                    }
+                    if (value.length < 6) {
+                      return 'Password must be at least 6 characters';
+                    }
+                    return null;
+                  },
+                ),
 
-                  SizedBox(height: 20),
-
-                  // Password field
-                  CustomTextField(
-                    controller: _passwordController,
-                    label: 'Password',
-                    prefixIcon: Icons.lock_outline,
-                    obscureText: _obscurePassword,
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_off
-                            : Icons.visibility,
-                        color: Colors.white.withOpacity(0.7),
-                      ),
-                      onPressed: () {
-                        setState(() => _obscurePassword = !_obscurePassword);
-                      },
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your password';
-                      }
-                      if (value.length < 6) {
-                        return 'Password must be at least 6 characters';
-                      }
-                      return null;
+                SizedBox(height: 10),
+                // Forgot password
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () {
+                      _showFeatureMessage(
+                        'Forgot Password',
+                        'Password reset feature coming soon!',
+                      );
                     },
-                  ),
-
-                  SizedBox(height: 10),
-                  // Forgot password
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () {
-                        _showFeatureMessage(
-                          'Forgot Password',
-                          'Password reset feature coming soon!',
-                        );
-                      },
-                      child: Text(
-                        'Forgot Password?',
-                        style: TextStyle(
-                          color: Color(0xFF00DFD8),
-                          fontWeight: FontWeight.w500,
-                        ),
+                    child: Text(
+                      'Forgot Password?',
+                      style: TextStyle(
+                        color: Color(0xFF00DFD8),
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
+                ),
 
-                  SizedBox(height: 30), // Increased spacing
-                  // Login button - EXTRA LARGE size
-                  Container(
-                    width: double.infinity,
-                    height: 70, // Increased height for prominent button
-                    child: GradientButton(
-                      onPressed: _isLoading ? null : _login,
-                      borderRadius: 20, // More rounded corners
-                      child: _isLoading
-                          ? Container(
-                              height: 35,
-                              width: 35,
-                              child: Lottie.asset(
-                                'assets/animations/travel_animation.json',
-                                fit: BoxFit.contain,
-                              ),
-                            )
-                          : Text(
-                              'SIGN IN',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 20, // Larger font size
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1.2, // Letter spacing for style
-                              ),
+                SizedBox(height: 30), // Increased spacing
+                // Login button - EXTRA LARGE size
+                Container(
+                  width: double.infinity,
+                  height: 70, // Increased height for prominent button
+                  child: GradientButton(
+                    onPressed: _isLoading ? null : _login,
+                    borderRadius: 20, // More rounded corners
+                    child: _isLoading
+                        ? Container(
+                            height: 35,
+                            width: 35,
+                            child: Lottie.asset(
+                              'assets/animations/travel_animation.json',
+                              fit: BoxFit.contain,
                             ),
-                    ),
-                  ),
-
-                  SizedBox(height: 30), // Increased spacing
-                  // Divider
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Divider(color: Colors.white.withOpacity(0.3)),
-                      ),
-                      Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16),
-                        child: Text(
-                          'Or continue with',
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.8),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Divider(color: Colors.white.withOpacity(0.3)),
-                      ),
-                    ],
-                  ),
-
-                  SizedBox(height: 30), // Increased spacing
-                  // Google sign in button - Larger size
-                  Container(
-                    width: double.infinity,
-                    height: 65, // Increased height
-                    child: GradientButton(
-                      onPressed: _isLoading ? null : _googleSignIn,
-                      isSecondary: true,
-                      borderRadius: 18,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 30, // Increased icon size
-                            height: 30,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(8),
-                              color: Colors.white,
-                            ),
-                            child: Padding(
-                              padding: EdgeInsets.all(5),
-                              child: Image.asset(
-                                'assets/images/google_icon.png',
-                                fit: BoxFit.contain,
-                              ),
-                            ),
-                          ),
-                          SizedBox(width: 15),
-                          Text(
-                            'Sign in with Google',
+                          )
+                        : Text(
+                            'SIGN IN',
                             style: TextStyle(
-                              fontSize: 17, // Increased font size
                               color: Colors.white,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 20, // Larger font size
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.2, // Letter spacing for style
+                            ),
+                          ),
+                  ),
+                ),
+
+                SizedBox(height: 30), // Increased spacing
+                // Divider
+                Row(
+                  children: [
+                    Expanded(
+                      child: Divider(color: Colors.white.withOpacity(0.3)),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        'Or continue with',
+                        style: TextStyle(color: Colors.white.withOpacity(0.8)),
+                      ),
+                    ),
+                    Expanded(
+                      child: Divider(color: Colors.white.withOpacity(0.3)),
+                    ),
+                  ],
+                ),
+
+                SizedBox(height: 30), // Increased spacing
+                // Google sign in button - Larger size
+                Container(
+                  width: double.infinity,
+                  height: 65, // Increased height
+                  child: GradientButton(
+                    onPressed: _isLoading ? null : _googleSignIn,
+                    isSecondary: true,
+                    borderRadius: 18,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 30, // Increased icon size
+                          height: 30,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            color: Colors.white,
+                          ),
+                          child: Padding(
+                            padding: EdgeInsets.all(5),
+                            child: Image.asset(
+                              'assets/images/google_icon.png',
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 15),
+                        Text(
+                          'Sign in with Google',
+                          style: TextStyle(
+                            fontSize: 17, // Increased font size
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                SizedBox(height: 40),
+
+                // Sign up link
+                Center(
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => SignupScreen()),
+                      );
+                    },
+                    child: RichText(
+                      text: TextSpan(
+                        text: "Don't have an account? ",
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.8),
+                          fontSize: 16,
+                        ),
+                        children: [
+                          TextSpan(
+                            text: 'Sign Up',
+                            style: TextStyle(
+                              color: Color(0xFF00DFD8),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
                             ),
                           ),
                         ],
                       ),
                     ),
                   ),
-
-                  SizedBox(height: 40),
-
-                  // Sign up link
-                  Center(
-                    child: GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => SignupScreen(),
-                          ),
-                        );
-                      },
-                      child: RichText(
-                        text: TextSpan(
-                          text: "Don't have an account? ",
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.8),
-                            fontSize: 16,
-                          ),
-                          children: [
-                            TextSpan(
-                              text: 'Sign Up',
-                              style: TextStyle(
-                                color: Color(0xFF00DFD8),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
