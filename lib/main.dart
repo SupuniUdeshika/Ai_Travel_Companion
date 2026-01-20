@@ -16,7 +16,11 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
-      providers: [ChangeNotifierProvider(create: (_) => AuthService())],
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthService()),
+        Provider(create: (_) => DestinationDataService()),
+      ],
+
       child: MaterialApp(
         title: 'AI Travel Companion',
         debugShowCheckedModeBanner: false,

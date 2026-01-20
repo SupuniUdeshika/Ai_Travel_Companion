@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-class DestinationService {
+class DestinationDataService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
@@ -212,23 +212,6 @@ class DestinationService {
     }
   }
 
-  // Get destinations near a location
-  Future<List<Map<String, dynamic>>> getNearbyDestinations(
-    double latitude,
-    double longitude,
-    double radiusInKm,
-  ) async {
-    try {
-      // Note: Firestore doesn't support geospatial queries natively
-      // You would need to use a geohash library or Cloud Functions
-      // For now, returning empty
-      return [];
-    } catch (error) {
-      print('Error fetching nearby destinations: $error');
-      return [];
-    }
-  }
-
   // Record destination view for analytics
   Future<void> recordView(String destinationId) async {
     try {
@@ -281,74 +264,6 @@ class DestinationService {
     } catch (error) {
       print('Error removing from wishlist: $error');
       throw error;
-    }
-  }
-
-  // Get recommended destinations based on user history
-  Future<List<Map<String, dynamic>>> getRecommendedDestinations() async {
-    try {
-      final userId = _auth.currentUser?.uid;
-      if (userId == null) return [];
-
-      // Get user's visited destinations
-      final visitedSnapshot = await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('visited')
-          .get();
-
-      if (visitedSnapshot.docs.isEmpty) {
-        // If no history, return top rated destinations
-        return await getTopPicks();
-      }
-
-      // Get categories from visited destinations
-      final visitedCategories = <String>{};
-      for (var doc in visitedSnapshot.docs) {
-        final destination = await getDestination(doc.id);
-        if (destination != null) {
-          final category = destination['category']?.toString();
-          if (category != null) {
-            visitedCategories.add(category);
-          }
-        }
-      }
-
-      // Get destinations in similar categories
-      List<Map<String, dynamic>> recommendations = [];
-      for (var category in visitedCategories) {
-        final categoryDestinations = await getDestinations(category: category);
-        recommendations.addAll(categoryDestinations);
-      }
-
-      // Remove duplicates and visited places
-      final visitedIds = visitedSnapshot.docs.map((doc) => doc.id).toSet();
-      recommendations = recommendations
-          .where((dest) => !visitedIds.contains(dest['id']))
-          .toList();
-
-      // Remove duplicates by id
-      final seenIds = <String>{};
-      recommendations = recommendations.where((dest) {
-        final id = dest['id']?.toString();
-        if (id != null && !seenIds.contains(id)) {
-          seenIds.add(id);
-          return true;
-        }
-        return false;
-      }).toList();
-
-      // Sort by rating
-      recommendations.sort((a, b) {
-        final ratingA = (a['rating'] as num?)?.toDouble() ?? 0.0;
-        final ratingB = (b['rating'] as num?)?.toDouble() ?? 0.0;
-        return ratingB.compareTo(ratingA);
-      });
-
-      return recommendations.take(10).toList();
-    } catch (error) {
-      print('Error getting recommendations: $error');
-      return [];
     }
   }
 }

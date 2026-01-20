@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:lottie/lottie.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../services/destination_service.dart';
 import '../widgets/destination_card.dart';
 import '../widgets/category_chip.dart';
@@ -54,7 +55,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
 
   Future<void> _loadDestinations() async {
     try {
-      final destinationService = Provider.of<DestinationService>(
+      final destinationService = Provider.of<DestinationDataService>(
         context,
         listen: false,
       );
@@ -122,7 +123,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
         'coordinates': {'lat': 5.9464, 'lng': 80.4583},
         'tags': ['Whale Watching', 'Surfing', 'Sunset', 'Relaxing'],
         'isTopPick': true,
-        'imageUrl': 'assets/images/mirissa.jpg',
+        'imageUrl':
+            'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=800&h=600&fit=crop',
         'weatherSuitability': {'sunny': 5, 'cloudy': 4, 'rainy': 1},
       },
       {
@@ -139,7 +141,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
         'coordinates': {'lat': 6.8697, 'lng': 81.0464},
         'tags': ['Hiking', 'Waterfalls', 'Tea Plantations', 'Photography'],
         'isTopPick': true,
-        'imageUrl': 'assets/images/ella.jpg',
+        'imageUrl':
+            'https://images.unsplash.com/photo-1591170713907-8d8b9c6b5c7c?w=800&h=600&fit=crop',
         'weatherSuitability': {'sunny': 5, 'cloudy': 4, 'rainy': 2},
       },
       {
@@ -156,7 +159,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
         'coordinates': {'lat': 7.2936, 'lng': 80.6413},
         'tags': ['UNESCO', 'Buddhist', 'Cultural', 'Historical'],
         'isTopPick': true,
-        'imageUrl': 'assets/images/temple.jpg',
+        'imageUrl':
+            'https://images.unsplash.com/photo-1591170713917-8d8b9c6b5c7c?w=800&h=600&fit=crop',
         'weatherSuitability': {'sunny': 4, 'cloudy': 5, 'rainy': 5},
       },
       {
@@ -173,7 +177,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
         'coordinates': {'lat': 6.3721, 'lng': 81.5153},
         'tags': ['Safari', 'Leopards', 'Elephants', 'Bird Watching'],
         'isTopPick': false,
-        'imageUrl': 'assets/images/yala.jpg',
+        'imageUrl':
+            'https://images.unsplash.com/photo-1593693399771-6c36d37c4d60?w=800&h=600&fit=crop',
         'weatherSuitability': {'sunny': 5, 'cloudy': 4, 'rainy': 2},
       },
       {
@@ -207,7 +212,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
         'coordinates': {'lat': 6.8096, 'lng': 80.4993},
         'tags': ['Pilgrimage', 'Hiking', 'Sunrise', 'Sacred'],
         'isTopPick': false,
-        'imageUrl': 'assets/images/adams_peak.jpg',
+        'imageUrl':
+            'https://images.unsplash.com/photo-1591170713917-8d8b9c6b5c7d?w=800&h=600&fit=crop',
         'weatherSuitability': {'sunny': 5, 'cloudy': 3, 'rainy': 1},
       },
       {
@@ -224,8 +230,81 @@ class _ExploreScreenState extends State<ExploreScreen> {
         'coordinates': {'lat': 7.9403, 'lng': 81.0189},
         'tags': ['UNESCO', 'Archaeological', 'Ruins', 'Buddhist'],
         'isTopPick': false,
-        'imageUrl': 'assets/images/polonnaruwa.jpg',
+        'imageUrl':
+            'https://images.unsplash.com/photo-1593693399771-6c36d37c4d61?w=800&h=600&fit=crop',
         'weatherSuitability': {'sunny': 5, 'cloudy': 4, 'rainy': 3},
+      },
+      {
+        'id': '9',
+        'name': 'Nuwara Eliya',
+        'province': 'Central',
+        'district': 'Nuwara Eliya',
+        'category': 'Hills',
+        'description': 'Beautiful hill station known as "Little England".',
+        'rating': 4.6,
+        'reviewCount': 920,
+        'bestTime': 'Mar-May',
+        'entryFee': 0.0,
+        'coordinates': {'lat': 6.9497, 'lng': 80.7891},
+        'tags': ['Tea Plantations', 'Cool Climate', 'Gardens', 'Waterfalls'],
+        'isTopPick': false,
+        'imageUrl':
+            'https://images.unsplash.com/photo-1593693399771-6c36d37c4d62?w=800&h=600&fit=crop',
+        'weatherSuitability': {'sunny': 4, 'cloudy': 5, 'rainy': 3},
+      },
+      {
+        'id': '10',
+        'name': 'Arugam Bay',
+        'province': 'Eastern',
+        'district': 'Ampara',
+        'category': 'Beaches',
+        'description': 'Famous surfing destination with beautiful beaches.',
+        'rating': 4.7,
+        'reviewCount': 870,
+        'bestTime': 'Apr-Sep',
+        'entryFee': 0.0,
+        'coordinates': {'lat': 6.8375, 'lng': 81.8306},
+        'tags': ['Surfing', 'Beach', 'Relaxing', 'Sunset'],
+        'isTopPick': false,
+        'imageUrl':
+            'https://images.unsplash.com/photo-1544551763-46a013bb70d7?w=800&h=600&fit=crop',
+        'weatherSuitability': {'sunny': 5, 'cloudy': 4, 'rainy': 2},
+      },
+      {
+        'id': '11',
+        'name': 'Horton Plains National Park',
+        'province': 'Central',
+        'district': 'Nuwara Eliya',
+        'category': 'Wildlife',
+        'description': 'Beautiful national park with World\'s End viewpoint.',
+        'rating': 4.7,
+        'reviewCount': 780,
+        'bestTime': 'Jan-Mar',
+        'entryFee': 15.0,
+        'coordinates': {'lat': 6.8022, 'lng': 80.8089},
+        'tags': ['Hiking', 'Viewpoint', 'Wildlife', 'Nature'],
+        'isTopPick': false,
+        'imageUrl':
+            'https://images.unsplash.com/photo-1593693399771-6c36d37c4d63?w=800&h=600&fit=crop',
+        'weatherSuitability': {'sunny': 4, 'cloudy': 5, 'rainy': 3},
+      },
+      {
+        'id': '12',
+        'name': 'Dambulla Cave Temple',
+        'province': 'Central',
+        'district': 'Matale',
+        'category': 'Religious',
+        'description': 'Largest and best-preserved cave temple complex.',
+        'rating': 4.5,
+        'reviewCount': 950,
+        'bestTime': 'All Year',
+        'entryFee': 10.0,
+        'coordinates': {'lat': 7.8567, 'lng': 80.6492},
+        'tags': ['UNESCO', 'Buddhist', 'Cave', 'Historical'],
+        'isTopPick': false,
+        'imageUrl':
+            'https://images.unsplash.com/photo-1591170713917-8d8b9c6b5c7e?w=800&h=600&fit=crop',
+        'weatherSuitability': {'sunny': 4, 'cloudy': 5, 'rainy': 5},
       },
     ];
   }
@@ -585,6 +664,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
                                                 (dest['rating'] as num?)
                                                     ?.toDouble() ??
                                                 0.0,
+                                            imageUrl:
+                                                dest['imageUrl'] as String?,
                                             onTap: () =>
                                                 _showDestinationDetail(dest),
                                           ),
@@ -631,20 +712,25 @@ class _ExploreScreenState extends State<ExploreScreen> {
                               ) {
                                 final destination =
                                     _filteredDestinations[index];
+                                final imageUrl =
+                                    destination['imageUrl'] as String?;
+                                final name = destination['name'] as String;
+                                final province =
+                                    destination['province'] as String;
+                                final rating =
+                                    (destination['rating'] as num?)
+                                        ?.toDouble() ??
+                                    0.0;
+                                final category =
+                                    destination['category'] as String;
+
                                 return GestureDetector(
                                   onTap: () =>
                                       _showDestinationDetail(destination),
                                   child: Container(
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(20),
-                                      gradient: LinearGradient(
-                                        colors: [
-                                          Color(0xFF1E3A8A),
-                                          Color(0xFF3B82F6),
-                                        ],
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                      ),
+                                      color: Color(0xFF1E3A8A),
                                       boxShadow: [
                                         BoxShadow(
                                           color: Colors.black.withOpacity(0.3),
@@ -657,7 +743,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
-                                        // Image Placeholder
+                                        // Image with CachedNetworkImage
                                         Container(
                                           height: 120,
                                           width: double.infinity,
@@ -665,23 +751,14 @@ class _ExploreScreenState extends State<ExploreScreen> {
                                             borderRadius: BorderRadius.vertical(
                                               top: Radius.circular(20),
                                             ),
-                                            gradient: LinearGradient(
-                                              colors: [
-                                                Color(0xFF007CF0),
-                                                Color(0xFF00DFD8),
-                                              ],
-                                              begin: Alignment.topLeft,
-                                              end: Alignment.bottomRight,
-                                            ),
                                           ),
-                                          child: Center(
-                                            child: Icon(
-                                              _getCategoryIcon(
-                                                destination['category']
-                                                    as String,
-                                              ),
-                                              color: Colors.white,
-                                              size: 40,
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.vertical(
+                                              top: Radius.circular(20),
+                                            ),
+                                            child: _buildImageWidget(
+                                              imageUrl,
+                                              category,
                                             ),
                                           ),
                                         ),
@@ -692,7 +769,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                                                 CrossAxisAlignment.start,
                                             children: [
                                               Text(
-                                                destination['name'] as String,
+                                                name,
                                                 style: TextStyle(
                                                   fontSize: 14,
                                                   fontWeight: FontWeight.bold,
@@ -703,8 +780,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                                               ),
                                               SizedBox(height: 4),
                                               Text(
-                                                destination['province']
-                                                    as String,
+                                                province,
                                                 style: TextStyle(
                                                   fontSize: 12,
                                                   color: Colors.white
@@ -721,12 +797,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                                                   ),
                                                   SizedBox(width: 4),
                                                   Text(
-                                                    (destination['rating']
-                                                                as num?)
-                                                            ?.toStringAsFixed(
-                                                              1,
-                                                            ) ??
-                                                        '0.0',
+                                                    rating.toStringAsFixed(1),
                                                     style: TextStyle(
                                                       fontSize: 12,
                                                       color: Colors.white,
@@ -748,8 +819,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                                                           ),
                                                     ),
                                                     child: Text(
-                                                      destination['category']
-                                                          as String,
+                                                      category,
                                                       style: TextStyle(
                                                         fontSize: 10,
                                                         color: Colors.white,
@@ -774,6 +844,50 @@ class _ExploreScreenState extends State<ExploreScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildImageWidget(String? imageUrl, String category) {
+    if (imageUrl != null && imageUrl.isNotEmpty) {
+      return CachedNetworkImage(
+        imageUrl: imageUrl,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: 120,
+        placeholder: (context, url) => Container(
+          color: Color(0xFF007CF0),
+          child: Center(
+            child: CircularProgressIndicator(
+              color: Color(0xFF00DFD8),
+              strokeWidth: 2,
+            ),
+          ),
+        ),
+        errorWidget: (context, url, error) => _buildPlaceholderIcon(category),
+        fadeInDuration: Duration(milliseconds: 300),
+        fadeInCurve: Curves.easeIn,
+        memCacheHeight: 240, // Cache smaller image for grid
+        memCacheWidth: 320,
+        maxHeightDiskCache: 240,
+        maxWidthDiskCache: 320,
+      );
+    } else {
+      return _buildPlaceholderIcon(category);
+    }
+  }
+
+  Widget _buildPlaceholderIcon(String category) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF007CF0), Color(0xFF00DFD8)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Center(
+        child: Icon(_getCategoryIcon(category), color: Colors.white, size: 40),
       ),
     );
   }
@@ -825,7 +939,7 @@ class _DestinationDetailSheetState extends State<DestinationDetailSheet> {
 
   Future<void> _checkIfFavorite() async {
     try {
-      final destinationService = Provider.of<DestinationService>(
+      final destinationService = Provider.of<DestinationDataService>(
         context,
         listen: false,
       );
@@ -842,7 +956,7 @@ class _DestinationDetailSheetState extends State<DestinationDetailSheet> {
 
   Future<void> _toggleFavorite() async {
     try {
-      final destinationService = Provider.of<DestinationService>(
+      final destinationService = Provider.of<DestinationDataService>(
         context,
         listen: false,
       );
@@ -883,6 +997,64 @@ class _DestinationDetailSheetState extends State<DestinationDetailSheet> {
     }
   }
 
+  Widget _buildDetailImage(String? imageUrl) {
+    if (imageUrl != null && imageUrl.isNotEmpty) {
+      return CachedNetworkImage(
+        imageUrl: imageUrl,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: 250,
+        placeholder: (context, url) => Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF007CF0), Color(0xFF00DFD8)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Center(
+            child: CircularProgressIndicator(
+              color: Color(0xFF00DFD8),
+              strokeWidth: 2,
+            ),
+          ),
+        ),
+        errorWidget: (context, url, error) => Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF007CF0), Color(0xFF00DFD8)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Center(
+            child: Icon(Icons.landscape, color: Colors.white, size: 80),
+          ),
+        ),
+        fadeInDuration: Duration(milliseconds: 500),
+        fadeInCurve: Curves.easeInOut,
+        memCacheHeight: 500,
+        memCacheWidth: 800,
+        maxHeightDiskCache: 1000,
+        maxWidthDiskCache: 1000,
+        useOldImageOnUrlChange: true,
+      );
+    } else {
+      return Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF007CF0), Color(0xFF00DFD8)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Center(
+          child: Icon(Icons.landscape, color: Colors.white, size: 80),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final destination = widget.destination;
@@ -899,6 +1071,7 @@ class _DestinationDetailSheetState extends State<DestinationDetailSheet> {
     final weatherSuitability =
         (destination['weatherSuitability'] as Map<String, dynamic>?) ??
         {'sunny': 0, 'cloudy': 0, 'rainy': 0};
+    final imageUrl = destination['imageUrl'] as String?;
 
     return DraggableScrollableSheet(
       initialChildSize: 0.9,
@@ -940,32 +1113,44 @@ class _DestinationDetailSheetState extends State<DestinationDetailSheet> {
                     borderRadius: BorderRadius.vertical(
                       top: Radius.circular(30),
                     ),
-                    gradient: LinearGradient(
-                      colors: [Color(0xFF007CF0), Color(0xFF00DFD8)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
                   ),
                   child: Stack(
                     children: [
-                      Center(
-                        child: Icon(
-                          Icons.landscape,
-                          color: Colors.white,
-                          size: 80,
+                      // Background Image
+                      _buildDetailImage(imageUrl),
+
+                      // Gradient Overlay
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              Colors.black.withOpacity(0.7),
+                            ],
+                          ),
                         ),
                       ),
+
+                      // Favorite Button
                       Positioned(
                         top: 16,
                         right: 16,
-                        child: IconButton(
-                          onPressed: _toggleFavorite,
-                          icon: Icon(
-                            _isFavorite
-                                ? Icons.favorite
-                                : Icons.favorite_border,
-                            color: _isFavorite ? Colors.red : Colors.white,
-                            size: 30,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.5),
+                            shape: BoxShape.circle,
+                          ),
+                          child: IconButton(
+                            onPressed: _toggleFavorite,
+                            icon: Icon(
+                              _isFavorite
+                                  ? Icons.favorite
+                                  : Icons.favorite_border,
+                              color: _isFavorite ? Colors.red : Colors.white,
+                              size: 30,
+                            ),
                           ),
                         ),
                       ),
@@ -1144,8 +1329,7 @@ class _DestinationDetailSheetState extends State<DestinationDetailSheet> {
                                   reviewCount.toString(),
                                 ),
                                 _buildDetailItem(
-                                  Icons
-                                      .wb_sunny, // Changed from weather_sunny to wb_sunny
+                                  Icons.wb_sunny,
                                   'Weather',
                                   _getWeatherSuitability(weatherSuitability),
                                 ),
@@ -1195,7 +1379,6 @@ class _DestinationDetailSheetState extends State<DestinationDetailSheet> {
                             child: ElevatedButton.icon(
                               onPressed: () {
                                 Navigator.pop(context);
-                                // In production: Navigate to trip planner with this destination
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     backgroundColor: Color(0xFF00DFD8),
@@ -1229,7 +1412,6 @@ class _DestinationDetailSheetState extends State<DestinationDetailSheet> {
                             child: OutlinedButton.icon(
                               onPressed: () {
                                 Navigator.pop(context);
-                                // In production: Open directions in maps
                                 _openMaps();
                               },
                               style: OutlinedButton.styleFrom(
@@ -1329,8 +1511,6 @@ class _DestinationDetailSheetState extends State<DestinationDetailSheet> {
   }
 
   void _openMaps() {
-    // This is a placeholder for maps integration
-    // You can use packages like: url_launcher, google_maps_flutter, mapbox_gl
     final coordinates =
         widget.destination['coordinates'] as Map<String, dynamic>?;
     if (coordinates != null) {
