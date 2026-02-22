@@ -1,11 +1,13 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:lottie/lottie.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shimmer/shimmer.dart';
 import '../services/destination_service.dart';
+import '../services/google_places_service.dart';
 import '../widgets/destination_card.dart';
 import '../widgets/category_chip.dart';
-import '../widgets/search_bar.dart';
 
 class ExploreScreen extends StatefulWidget {
   @override
@@ -15,77 +17,256 @@ class ExploreScreen extends StatefulWidget {
 class _ExploreScreenState extends State<ExploreScreen> {
   final List<String> _categories = [
     'All',
+    'Tourist Attractions',
+    'Hotels',
+    'Restaurants',
     'Beaches',
     'Hills',
     'Cultural',
     'Wildlife',
     'Historical',
-    'Adventure',
     'Religious',
-    'Cities',
-    'Villages',
   ];
 
-  final List<String> _provinces = [
-    'All Provinces',
-    'Western',
-    'Central',
-    'Southern',
-    'Northern',
-    'Eastern',
-    'North Western',
-    'North Central',
-    'Uva',
-    'Sabaragamuwa',
+  final List<String> _sriLankanCities = [
+    'Colombo',
+    'Kandy',
+    'Galle',
+    'Jaffna',
+    'Anuradhapura',
+    'Polonnaruwa',
+    'Trincomalee',
+    'Batticaloa',
+    'Matara',
+    'Ratnapura',
+    'Badulla',
+    'Nuwara Eliya',
+    'Hambantota',
+    'Kurunegala',
+    'Puttalam',
+    'Kalutara',
+    'Matale',
+    'Monaragala',
+    'Ampara',
+    'Vavuniya',
+    'Mannar',
+    'Kilinochchi',
+    'Mullaitivu',
+    'Ella',
+    'Sigiriya',
+    'Mirissa',
+    'Arugam Bay',
+    'Dambulla',
+    'Bentota',
+    'Hikkaduwa',
+    'Unawatuna',
+    'Tangalle',
+    'Negombo',
+    'Chilaw',
+    'Beruwala',
   ];
 
   String _selectedCategory = 'All';
-  String _selectedProvince = 'All Provinces';
+  String _selectedCity = 'Colombo';
   String _searchQuery = '';
   bool _isLoading = true;
+  bool _searchingOnline = false;
   List<Map<String, dynamic>> _allDestinations = [];
   List<Map<String, dynamic>> _filteredDestinations = [];
   List<Map<String, dynamic>> _topDestinations = [];
+  List<Map<String, dynamic>> _onlineResults = [];
+  Timer? _debounceTimer;
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
-    _loadDestinations();
+    _loadInitialPlaces(); // මුලින්ම Colombo places load කරන්න
   }
 
-  Future<void> _loadDestinations() async {
-    try {
-      final destinationService = Provider.of<DestinationDataService>(
-        context,
-        listen: false,
-      );
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    super.dispose();
+  }
 
-      // Fetch destinations from Firestore
-      final destinations = await destinationService.getDestinations();
-      final topPicks = await destinationService.getTopPicks();
+  // මුල් places load කිරීම සඳහා අලුත් function එකක්
+  Future<void> _loadInitialPlaces() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // මුලින්ම Colombo city එකේ tourist attractions load කරන්න හදමු
+      List<Map<String, dynamic>> places =
+          await GooglePlacesService.searchPlaces(
+            city: 'Colombo',
+            category: 'Tourist Attractions',
+          );
+
+      // Tourist attractions නැත්නම්, general search එකක් කරමු
+      if (places.isEmpty) {
+        places = await GooglePlacesService.textSearch(
+          'tourist attractions',
+          'Colombo',
+        );
+      }
+
+      // තවමත් places නැත්නම්, sample data පාවිච්චි කරමු
+      if (places.isEmpty) {
+        places = _getSampleDestinations();
+      }
 
       setState(() {
-        _allDestinations = destinations.isNotEmpty
-            ? destinations
-            : _getSampleDestinations();
-        _filteredDestinations = _allDestinations;
-        _topDestinations = topPicks.isNotEmpty
-            ? topPicks
-            : _allDestinations
-                  .where((d) => (d['isTopPick'] as bool?) ?? false)
-                  .toList();
+        _allDestinations = places;
+        _filteredDestinations = places;
+        _isLoading = false;
+      });
+    } catch (error) {
+      print('Error loading initial places: $error');
+      setState(() {
+        _allDestinations = _getSampleDestinations();
+        _filteredDestinations = _getSampleDestinations();
+        _isLoading = false;
+      });
+    }
+  }
+
+  // Firebase වෙනුවට Google Places API එකෙන් data ගන්න අලුත් function එකක්
+  Future<void> _loadDestinations() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      List<Map<String, dynamic>> places;
+
+      if (_selectedCategory != 'All') {
+        // Category එකක් තෝරලා තියෙනවා නම්, ඒ category එකේ places ගන්න
+        places = await GooglePlacesService.searchPlaces(
+          city: _selectedCity,
+          category: _selectedCategory,
+        );
+      } else {
+        // All category නම්, general tourist attractions ගන්න
+        places = await GooglePlacesService.textSearch(
+          'tourist attractions',
+          _selectedCity,
+        );
+      }
+
+      // API එකෙන් results නැත්නම් sample data පාවිච්චි කරමු
+      if (places.isEmpty) {
+        places = _getSampleDestinations().where((place) {
+          if (_selectedCategory != 'All') {
+            return place['category'] == _selectedCategory;
+          }
+          return true;
+        }).toList();
+      }
+
+      setState(() {
+        _allDestinations = places;
+        _filteredDestinations = places;
         _isLoading = false;
       });
     } catch (error) {
       print('Error loading destinations: $error');
-      // Fallback to sample data
       setState(() {
         _allDestinations = _getSampleDestinations();
-        _filteredDestinations = _allDestinations;
-        _topDestinations = _allDestinations
-            .where((d) => (d['isTopPick'] as bool?) ?? false)
-            .toList();
+        _filteredDestinations = _getSampleDestinations();
         _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _searchOnlinePlaces() async {
+    if (_searchQuery.isEmpty) {
+      setState(() {
+        _searchingOnline = false;
+        _onlineResults.clear();
+        // Search එක clear කළාම, මුල් destinations පෙන්වන්න
+        _filteredDestinations = _allDestinations;
+      });
+      return;
+    }
+
+    setState(() {
+      _searchingOnline = true;
+      _onlineResults.clear();
+    });
+
+    try {
+      List<Map<String, dynamic>> places;
+
+      // First try category-based search if not "All"
+      if (_selectedCategory != 'All') {
+        places = await GooglePlacesService.searchPlaces(
+          city: _selectedCity,
+          category: _selectedCategory,
+          keyword: _searchQuery,
+        );
+
+        // If no results, fall back to text search
+        if (places.isEmpty) {
+          places = await GooglePlacesService.textSearch(
+            _searchQuery,
+            _selectedCity,
+          );
+        }
+      } else {
+        // For "All" category, use text search directly
+        places = await GooglePlacesService.textSearch(
+          _searchQuery,
+          _selectedCity,
+        );
+      }
+
+      // API එකෙන් results නැත්නම්, sample data filter කරලා පෙන්වමු
+      if (places.isEmpty) {
+        places = _getSampleDestinations().where((place) {
+          final nameMatch = place['name'].toString().toLowerCase().contains(
+            _searchQuery.toLowerCase(),
+          );
+          final descMatch = place['description']
+              .toString()
+              .toLowerCase()
+              .contains(_searchQuery.toLowerCase());
+          final categoryMatch =
+              _selectedCategory == 'All' ||
+              place['category'] == _selectedCategory;
+          return (nameMatch || descMatch) && categoryMatch;
+        }).toList();
+      }
+
+      setState(() {
+        _onlineResults = places.where((place) => place.isNotEmpty).toList();
+        _searchingOnline = false;
+      });
+    } catch (error) {
+      print('Error searching online places: $error');
+
+      // Error එකක් වුණොත් sample data filter කරලා පෙන්වමු
+      final sampleResults = _getSampleDestinations().where((place) {
+        final nameMatch = place['name'].toString().toLowerCase().contains(
+          _searchQuery.toLowerCase(),
+        );
+        final descMatch = place['description']
+            .toString()
+            .toLowerCase()
+            .contains(_searchQuery.toLowerCase());
+        final categoryMatch =
+            _selectedCategory == 'All' ||
+            place['category'] == _selectedCategory;
+        return (nameMatch || descMatch) && categoryMatch;
+      }).toList();
+
+      setState(() {
+        _onlineResults = sampleResults;
+        _searchingOnline = false;
       });
     }
   }
@@ -106,7 +287,9 @@ class _ExploreScreenState extends State<ExploreScreen> {
         'coordinates': {'lat': 7.9570, 'lng': 80.7603},
         'tags': ['UNESCO', 'Archaeological', 'Sunrise', 'Photography'],
         'isTopPick': true,
-        'imageUrl': 'assets/images/sigiriya.jpg',
+        'imageUrl': null,
+        'city': 'Sigiriya',
+        'address': 'Sigiriya, Central Province',
         'weatherSuitability': {'sunny': 5, 'cloudy': 4, 'rainy': 2},
       },
       {
@@ -123,188 +306,108 @@ class _ExploreScreenState extends State<ExploreScreen> {
         'coordinates': {'lat': 5.9464, 'lng': 80.4583},
         'tags': ['Whale Watching', 'Surfing', 'Sunset', 'Relaxing'],
         'isTopPick': true,
-        'imageUrl':
-            'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=800&h=600&fit=crop',
+        'imageUrl': null,
+        'city': 'Mirissa',
+        'address': 'Mirissa, Southern Province',
         'weatherSuitability': {'sunny': 5, 'cloudy': 4, 'rainy': 1},
       },
       {
         'id': '3',
-        'name': 'Ella Rock',
-        'province': 'Uva',
-        'district': 'Badulla',
-        'category': 'Hills',
-        'description': 'Scenic hiking trail with breathtaking views.',
-        'rating': 4.6,
-        'reviewCount': 850,
-        'bestTime': 'Jan-Mar',
-        'entryFee': 0.0,
-        'coordinates': {'lat': 6.8697, 'lng': 81.0464},
-        'tags': ['Hiking', 'Waterfalls', 'Tea Plantations', 'Photography'],
-        'isTopPick': true,
-        'imageUrl':
-            'https://images.unsplash.com/photo-1591170713907-8d8b9c6b5c7c?w=800&h=600&fit=crop',
-        'weatherSuitability': {'sunny': 5, 'cloudy': 4, 'rainy': 2},
-      },
-      {
-        'id': '4',
-        'name': 'Temple of the Sacred Tooth Relic',
+        'name': 'Temple of the Tooth',
         'province': 'Central',
         'district': 'Kandy',
         'category': 'Religious',
-        'description': 'Most important Buddhist temple in Sri Lanka.',
-        'rating': 4.5,
-        'reviewCount': 1200,
-        'bestTime': 'All Year',
+        'description': 'Sacred Buddhist temple housing a relic of Buddha.',
+        'rating': 4.9,
+        'reviewCount': 2100,
+        'bestTime': 'Dec-Apr',
         'entryFee': 10.0,
-        'coordinates': {'lat': 7.2936, 'lng': 80.6413},
-        'tags': ['UNESCO', 'Buddhist', 'Cultural', 'Historical'],
+        'coordinates': {'lat': 7.2936, 'lng': 80.6412},
+        'tags': ['Temple', 'Buddhist', 'Sacred', 'Cultural'],
         'isTopPick': true,
-        'imageUrl':
-            'https://images.unsplash.com/photo-1591170713917-8d8b9c6b5c7c?w=800&h=600&fit=crop',
-        'weatherSuitability': {'sunny': 4, 'cloudy': 5, 'rainy': 5},
+        'imageUrl': null,
+        'city': 'Kandy',
+        'address': 'Kandy, Central Province',
+        'weatherSuitability': {'sunny': 5, 'cloudy': 4, 'rainy': 3},
       },
       {
-        'id': '5',
-        'name': 'Yala National Park',
-        'province': 'Southern',
-        'district': 'Hambantota',
-        'category': 'Wildlife',
-        'description': 'Best place to see leopards and elephants in Sri Lanka.',
-        'rating': 4.7,
-        'reviewCount': 1100,
-        'bestTime': 'Feb-Jul',
-        'entryFee': 40.0,
-        'coordinates': {'lat': 6.3721, 'lng': 81.5153},
-        'tags': ['Safari', 'Leopards', 'Elephants', 'Bird Watching'],
-        'isTopPick': false,
-        'imageUrl':
-            'https://images.unsplash.com/photo-1593693399771-6c36d37c4d60?w=800&h=600&fit=crop',
-        'weatherSuitability': {'sunny': 5, 'cloudy': 4, 'rainy': 2},
-      },
-      {
-        'id': '6',
+        'id': '4',
         'name': 'Galle Fort',
         'province': 'Southern',
         'district': 'Galle',
         'category': 'Historical',
-        'description': 'Historic fort with Dutch colonial architecture.',
+        'description':
+            'Historic Portuguese-built fort with colonial architecture.',
         'rating': 4.6,
-        'reviewCount': 950,
+        'reviewCount': 850,
         'bestTime': 'Dec-Mar',
-        'entryFee': 0.0,
-        'coordinates': {'lat': 6.0268, 'lng': 80.2166},
-        'tags': ['UNESCO', 'Colonial', 'Shopping', 'Cafes'],
-        'isTopPick': false,
-        'imageUrl': 'assets/images/galle_fort.jpg',
-        'weatherSuitability': {'sunny': 4, 'cloudy': 5, 'rainy': 4},
+        'entryFee': 4.0,
+        'coordinates': {'lat': 6.0269, 'lng': 80.2171},
+        'tags': ['Fort', 'Colonial', 'UNESCO', 'Shopping'],
+        'isTopPick': true,
+        'imageUrl': null,
+        'city': 'Galle',
+        'address': 'Galle, Southern Province',
+        'weatherSuitability': {'sunny': 5, 'cloudy': 4, 'rainy': 2},
       },
       {
-        'id': '7',
-        'name': 'Adam\'s Peak',
-        'province': 'Sabaragamuwa',
-        'district': 'Ratnapura',
-        'category': 'Religious',
-        'description': 'Sacred mountain with a footprint-shaped depression.',
-        'rating': 4.7,
-        'reviewCount': 750,
-        'bestTime': 'Dec-May',
-        'entryFee': 0.0,
-        'coordinates': {'lat': 6.8096, 'lng': 80.4993},
-        'tags': ['Pilgrimage', 'Hiking', 'Sunrise', 'Sacred'],
-        'isTopPick': false,
-        'imageUrl':
-            'https://images.unsplash.com/photo-1591170713917-8d8b9c6b5c7d?w=800&h=600&fit=crop',
-        'weatherSuitability': {'sunny': 5, 'cloudy': 3, 'rainy': 1},
-      },
-      {
-        'id': '8',
-        'name': 'Polonnaruwa Ancient City',
-        'province': 'North Central',
-        'district': 'Polonnaruwa',
-        'category': 'Historical',
-        'description': 'Medieval capital with well-preserved ruins.',
-        'rating': 4.5,
-        'reviewCount': 680,
-        'bestTime': 'Dec-Apr',
-        'entryFee': 25.0,
-        'coordinates': {'lat': 7.9403, 'lng': 81.0189},
-        'tags': ['UNESCO', 'Archaeological', 'Ruins', 'Buddhist'],
-        'isTopPick': false,
-        'imageUrl':
-            'https://images.unsplash.com/photo-1593693399771-6c36d37c4d61?w=800&h=600&fit=crop',
-        'weatherSuitability': {'sunny': 5, 'cloudy': 4, 'rainy': 3},
-      },
-      {
-        'id': '9',
+        'id': '5',
         'name': 'Nuwara Eliya',
         'province': 'Central',
         'district': 'Nuwara Eliya',
         'category': 'Hills',
-        'description': 'Beautiful hill station known as "Little England".',
-        'rating': 4.6,
-        'reviewCount': 920,
-        'bestTime': 'Mar-May',
+        'description':
+            'Hill station known for tea plantations and cool climate.',
+        'rating': 4.5,
+        'reviewCount': 1500,
+        'bestTime': 'Jan-Apr',
         'entryFee': 0.0,
         'coordinates': {'lat': 6.9497, 'lng': 80.7891},
-        'tags': ['Tea Plantations', 'Cool Climate', 'Gardens', 'Waterfalls'],
+        'tags': ['Tea', 'Mountains', 'Scenic', 'Cool Climate'],
         'isTopPick': false,
-        'imageUrl':
-            'https://images.unsplash.com/photo-1593693399771-6c36d37c4d62?w=800&h=600&fit=crop',
-        'weatherSuitability': {'sunny': 4, 'cloudy': 5, 'rainy': 3},
+        'imageUrl': null,
+        'city': 'Nuwara Eliya',
+        'address': 'Nuwara Eliya, Central Province',
+        'weatherSuitability': {'sunny': 5, 'cloudy': 4, 'rainy': 3},
       },
       {
-        'id': '10',
-        'name': 'Arugam Bay',
-        'province': 'Eastern',
-        'district': 'Ampara',
-        'category': 'Beaches',
-        'description': 'Famous surfing destination with beautiful beaches.',
-        'rating': 4.7,
-        'reviewCount': 870,
-        'bestTime': 'Apr-Sep',
-        'entryFee': 0.0,
-        'coordinates': {'lat': 6.8375, 'lng': 81.8306},
-        'tags': ['Surfing', 'Beach', 'Relaxing', 'Sunset'],
-        'isTopPick': false,
-        'imageUrl':
-            'https://images.unsplash.com/photo-1544551763-46a013bb70d7?w=800&h=600&fit=crop',
-        'weatherSuitability': {'sunny': 5, 'cloudy': 4, 'rainy': 2},
-      },
-      {
-        'id': '11',
-        'name': 'Horton Plains National Park',
-        'province': 'Central',
-        'district': 'Nuwara Eliya',
-        'category': 'Wildlife',
-        'description': 'Beautiful national park with World\'s End viewpoint.',
-        'rating': 4.7,
-        'reviewCount': 780,
-        'bestTime': 'Jan-Mar',
-        'entryFee': 15.0,
-        'coordinates': {'lat': 6.8022, 'lng': 80.8089},
-        'tags': ['Hiking', 'Viewpoint', 'Wildlife', 'Nature'],
-        'isTopPick': false,
-        'imageUrl':
-            'https://images.unsplash.com/photo-1593693399771-6c36d37c4d63?w=800&h=600&fit=crop',
-        'weatherSuitability': {'sunny': 4, 'cloudy': 5, 'rainy': 3},
-      },
-      {
-        'id': '12',
-        'name': 'Dambulla Cave Temple',
-        'province': 'Central',
-        'district': 'Matale',
-        'category': 'Religious',
-        'description': 'Largest and best-preserved cave temple complex.',
+        'id': '6',
+        'name': 'Cinnamon Grand Colombo',
+        'province': 'Western',
+        'district': 'Colombo',
+        'category': 'Hotels',
+        'description': 'Luxury 5-star hotel in the heart of Colombo.',
         'rating': 4.5,
-        'reviewCount': 950,
-        'bestTime': 'All Year',
-        'entryFee': 10.0,
-        'coordinates': {'lat': 7.8567, 'lng': 80.6492},
-        'tags': ['UNESCO', 'Buddhist', 'Cave', 'Historical'],
+        'reviewCount': 650,
+        'bestTime': 'Year-round',
+        'entryFee': 0.0,
+        'coordinates': {'lat': 6.9121, 'lng': 79.8502},
+        'tags': ['Luxury', 'Hotel', 'Accommodation', 'Dining'],
         'isTopPick': false,
-        'imageUrl':
-            'https://images.unsplash.com/photo-1591170713917-8d8b9c6b5c7e?w=800&h=600&fit=crop',
-        'weatherSuitability': {'sunny': 4, 'cloudy': 5, 'rainy': 5},
+        'imageUrl': null,
+        'city': 'Colombo',
+        'address': 'Colombo, Western Province',
+        'weatherSuitability': {'sunny': 5, 'cloudy': 4, 'rainy': 4},
+      },
+      {
+        'id': '7',
+        'name': 'Ministry of Crab',
+        'province': 'Western',
+        'district': 'Colombo',
+        'category': 'Restaurants',
+        'description':
+            'Award-winning restaurant serving Sri Lankan crab dishes.',
+        'rating': 4.6,
+        'reviewCount': 580,
+        'bestTime': 'Evenings',
+        'entryFee': 0.0,
+        'coordinates': {'lat': 6.9221, 'lng': 79.8462},
+        'tags': ['Seafood', 'Fine Dining', 'Crab', 'Award-winning'],
+        'isTopPick': false,
+        'imageUrl': null,
+        'city': 'Colombo',
+        'address': 'Colombo, Western Province',
+        'weatherSuitability': {'sunny': 5, 'cloudy': 5, 'rainy': 5},
       },
     ];
   }
@@ -312,33 +415,10 @@ class _ExploreScreenState extends State<ExploreScreen> {
   void _filterDestinations() {
     List<Map<String, dynamic>> filtered = _allDestinations;
 
-    // Apply category filter
     if (_selectedCategory != 'All') {
       filtered = filtered
           .where((dest) => (dest['category'] as String?) == _selectedCategory)
           .toList();
-    }
-
-    // Apply province filter
-    if (_selectedProvince != 'All Provinces') {
-      filtered = filtered
-          .where((dest) => (dest['province'] as String?) == _selectedProvince)
-          .toList();
-    }
-
-    // Apply search filter
-    if (_searchQuery.isNotEmpty) {
-      filtered = filtered.where((dest) {
-        final name = (dest['name'] as String?)?.toLowerCase() ?? '';
-        final description =
-            (dest['description'] as String?)?.toLowerCase() ?? '';
-        final province = (dest['province'] as String?)?.toLowerCase() ?? '';
-        final query = _searchQuery.toLowerCase();
-
-        return name.contains(query) ||
-            description.contains(query) ||
-            province.contains(query);
-      }).toList();
     }
 
     setState(() {
@@ -357,142 +437,323 @@ class _ExploreScreenState extends State<ExploreScreen> {
     );
   }
 
-  void _showFilterDialog() {
-    showDialog(
+  void _showCitySelectionDialog() {
+    showModalBottomSheet(
       context: context,
+      backgroundColor: Color(0xFF1E3A8A),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              backgroundColor: Color(0xFF1E3A8A),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              title: Row(
+        return Container(
+          padding: EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Icon(Icons.filter_list, color: Color(0xFF00DFD8), size: 24),
-                  SizedBox(width: 10),
                   Text(
-                    'Filter Destinations',
+                    'Select a City',
                     style: TextStyle(
                       color: Colors.white,
+                      fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: Icon(Icons.close, color: Colors.white),
+                  ),
                 ],
               ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Province Filter
-                    Text(
-                      'Province',
-                      style: TextStyle(
+              SizedBox(height: 10),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: _sriLankanCities.length,
+                  itemBuilder: (context, index) {
+                    final city = _sriLankanCities[index];
+                    return ListTile(
+                      leading: Icon(
+                        Icons.location_city,
                         color: Color(0xFF00DFD8),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
                       ),
-                    ),
-                    SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: _provinces.map((province) {
-                        return FilterChip(
-                          label: Text(province),
-                          selected: _selectedProvince == province,
-                          onSelected: (selected) {
-                            setState(() {
-                              _selectedProvince = selected
-                                  ? province
-                                  : 'All Provinces';
-                            });
-                          },
-                          backgroundColor: Colors.white.withOpacity(0.1),
-                          selectedColor: Color(0xFF00DFD8),
-                          labelStyle: TextStyle(
-                            color: _selectedProvince == province
-                                ? Colors.white
-                                : Colors.white70,
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                    SizedBox(height: 20),
-                    // Category Filter
-                    Text(
-                      'Category',
-                      style: TextStyle(
-                        color: Color(0xFF00DFD8),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                      title: Text(
+                        city,
+                        style: TextStyle(
+                          color: _selectedCity == city
+                              ? Color(0xFF00DFD8)
+                              : Colors.white,
+                          fontWeight: _selectedCity == city
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: _categories.map((category) {
-                        return FilterChip(
-                          label: Text(category),
-                          selected: _selectedCategory == category,
-                          onSelected: (selected) {
-                            setState(() {
-                              _selectedCategory = selected ? category : 'All';
-                            });
-                          },
-                          backgroundColor: Colors.white.withOpacity(0.1),
-                          selectedColor: Color(0xFF00DFD8),
-                          labelStyle: TextStyle(
-                            color: _selectedCategory == category
-                                ? Colors.white
-                                : Colors.white70,
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ],
+                      trailing: _selectedCity == city
+                          ? Icon(Icons.check, color: Color(0xFF00DFD8))
+                          : null,
+                      onTap: () {
+                        setState(() {
+                          _selectedCity = city;
+                        });
+                        Navigator.pop(context);
+
+                        // City එක වෙනස් කළාම, අලුත් city එකේ places load කරන්න
+                        _loadDestinations();
+
+                        if (_searchQuery.isNotEmpty) {
+                          _searchOnlinePlaces();
+                        }
+                      },
+                    );
+                  },
                 ),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    setState(() {
-                      _selectedCategory = 'All';
-                      _selectedProvince = 'All Provinces';
-                      _filterDestinations();
-                    });
-                  },
-                  child: Text('Reset', style: TextStyle(color: Colors.white70)),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _filterDestinations();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xFF00DFD8),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                  ),
-                  child: Text(
-                    'Apply Filters',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
-              ],
-            );
-          },
+            ],
+          ),
         );
       },
     );
   }
 
+  Widget _buildSearchBar() {
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: TextField(
+        controller: _searchController,
+        focusNode: _searchFocusNode,
+        decoration: InputDecoration(
+          filled: true,
+          fillColor: Colors.white,
+          hintText: 'Search places in $_selectedCity...',
+          hintStyle: TextStyle(color: Colors.grey),
+          prefixIcon: Icon(Icons.search, color: Color(0xFF00DFD8)),
+          suffixIcon: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_searchController.text.isNotEmpty)
+                IconButton(
+                  icon: Icon(Icons.clear, color: Colors.grey),
+                  onPressed: () {
+                    setState(() {
+                      _searchController.clear();
+                      _searchQuery = '';
+                      _onlineResults.clear();
+                      _filteredDestinations = _allDestinations;
+                    });
+                  },
+                ),
+              IconButton(
+                icon: Icon(Icons.location_city, color: Color(0xFF00DFD8)),
+                onPressed: _showCitySelectionDialog,
+              ),
+            ],
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: BorderSide.none,
+          ),
+          contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        ),
+        style: TextStyle(color: Colors.black),
+        onChanged: (value) {
+          if (_debounceTimer?.isActive ?? false) {
+            _debounceTimer!.cancel();
+          }
+
+          _debounceTimer = Timer(const Duration(milliseconds: 800), () {
+            setState(() {
+              _searchQuery = value;
+            });
+            if (value.isNotEmpty) {
+              _searchOnlinePlaces();
+            } else {
+              setState(() {
+                _onlineResults.clear();
+                _filteredDestinations = _allDestinations;
+              });
+            }
+          });
+        },
+      ),
+    );
+  }
+
+  Widget _buildPlaceItem(Map<String, dynamic> place) {
+    final name = place['name'] as String? ?? 'Place';
+    final address = place['address'] as String? ?? '';
+    final rating = (place['rating'] as num?)?.toDouble() ?? 0.0;
+    final reviewCount = place['reviewCount'] as int? ?? 0;
+    final photoUrl = place['photoUrl'] as String?;
+    final description = place['description'] as String? ?? '';
+    final actualCity = place['city'] as String? ?? _selectedCity;
+
+    return Card(
+      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      color: Color(0xFF1E3A8A),
+      child: InkWell(
+        onTap: () => _showDestinationDetail(place),
+        borderRadius: BorderRadius.circular(15),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image
+            Container(
+              height: 150,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
+                child: photoUrl != null
+                    ? CachedNetworkImage(
+                        imageUrl: photoUrl,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Container(
+                          color: Color(0xFF007CF0),
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => Container(
+                          color: Color(0xFF007CF0),
+                          child: Center(
+                            child: Icon(
+                              Icons.place,
+                              color: Colors.white,
+                              size: 50,
+                            ),
+                          ),
+                        ),
+                      )
+                    : Container(
+                        color: Color(0xFF007CF0),
+                        child: Center(
+                          child: Icon(
+                            Icons.place,
+                            color: Colors.white,
+                            size: 50,
+                          ),
+                        ),
+                      ),
+              ),
+            ),
+
+            // Details
+            Padding(
+              padding: EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  SizedBox(height: 4),
+                  if (description.isNotEmpty)
+                    Text(
+                      description,
+                      style: TextStyle(fontSize: 14, color: Colors.white70),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(Icons.location_on, color: Colors.white70, size: 16),
+                      SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          address,
+                          style: TextStyle(fontSize: 12, color: Colors.white70),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(Icons.star, color: Colors.amber, size: 16),
+                      SizedBox(width: 4),
+                      Text(
+                        rating.toStringAsFixed(1),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        '($reviewCount reviews)',
+                        style: TextStyle(color: Colors.white70, fontSize: 12),
+                      ),
+                      Spacer(),
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Color(0xFF00DFD8).withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Color(0xFF00DFD8)),
+                        ),
+                        child: Text(
+                          actualCity,
+                          style: TextStyle(
+                            color: Color(0xFF00DFD8),
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildShimmerPlaceholder() {
+    return Card(
+      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      color: Color(0xFF1E3A8A),
+      child: Shimmer.fromColors(
+        baseColor: Colors.grey[700]!,
+        highlightColor: Colors.grey[500]!,
+        child: Container(
+          height: 200,
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(15)),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final displayResults = _searchQuery.isNotEmpty
+        ? _onlineResults
+        : _filteredDestinations;
+    final hasResults = displayResults.isNotEmpty;
+
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -529,28 +790,15 @@ class _ExploreScreenState extends State<ExploreScreen> {
                     ),
                     Spacer(),
                     IconButton(
-                      onPressed: _showFilterDialog,
-                      icon: Icon(Icons.filter_list, color: Colors.white),
+                      onPressed: _showCitySelectionDialog,
+                      icon: Icon(Icons.location_city, color: Colors.white),
                     ),
                   ],
                 ),
               ),
 
               // Search Bar
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16.0,
-                  vertical: 8.0,
-                ),
-                child: SearchBarWidget(
-                  onSearchChanged: (query) {
-                    setState(() {
-                      _searchQuery = query;
-                    });
-                    _filterDestinations();
-                  },
-                ),
-              ),
+              _buildSearchBar(),
 
               // Categories
               Container(
@@ -568,10 +816,47 @@ class _ExploreScreenState extends State<ExploreScreen> {
                         setState(() {
                           _selectedCategory = category;
                         });
-                        _filterDestinations();
+                        if (_searchQuery.isEmpty) {
+                          _loadDestinations(); // Category එක වෙනස් කළාම අලුත් data load කරන්න
+                        } else {
+                          _searchOnlinePlaces();
+                        }
                       },
                     );
                   },
+                ),
+              ),
+
+              SizedBox(height: 10),
+
+              // Selected City
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    Icon(Icons.location_on, color: Color(0xFF00DFD8), size: 18),
+                    SizedBox(width: 8),
+                    Text(
+                      '$_selectedCity',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    if (_searchQuery.isNotEmpty) ...[
+                      SizedBox(width: 8),
+                      Text('•', style: TextStyle(color: Colors.white70)),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Search: "$_searchQuery"',
+                          style: TextStyle(color: Colors.white70, fontSize: 14),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
 
@@ -585,260 +870,74 @@ class _ExploreScreenState extends State<ExploreScreen> {
                           color: Color(0xFF00DFD8),
                         ),
                       )
-                    : _filteredDestinations.isEmpty
+                    : _searchingOnline
+                    ? ListView.builder(
+                        itemCount: 3,
+                        itemBuilder: (context, index) =>
+                            _buildShimmerPlaceholder(),
+                      )
+                    : !hasResults
                     ? Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Lottie.asset(
-                              'assets/animations/no_results.json',
-                              height: 150,
+                            Icon(
+                              Icons.search_off,
+                              size: 80,
+                              color: Colors.white70,
                             ),
                             SizedBox(height: 20),
                             Text(
-                              'No destinations found',
+                              _searchQuery.isNotEmpty
+                                  ? 'No places found for "$_searchQuery" in $_selectedCity'
+                                  : 'No destinations found in $_selectedCity',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 18,
                               ),
+                              textAlign: TextAlign.center,
                             ),
                             SizedBox(height: 10),
                             Text(
-                              'Try different filters or search',
+                              'Try a different search or city',
                               style: TextStyle(color: Colors.white70),
                             ),
+                            if (_searchQuery.isNotEmpty)
+                              Padding(
+                                padding: EdgeInsets.only(top: 20),
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    // Try searching in different city
+                                    if (_selectedCity != 'Colombo') {
+                                      setState(() {
+                                        _selectedCity = 'Colombo';
+                                      });
+                                    } else {
+                                      setState(() {
+                                        _selectedCity = 'Kandy';
+                                      });
+                                    }
+                                    _searchOnlinePlaces();
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Color(0xFF00DFD8),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Try searching in ${_selectedCity == 'Colombo' ? 'Kandy' : 'Colombo'}',
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
                       )
-                    : CustomScrollView(
-                        slivers: [
-                          // Top Picks Section
-                          if (_selectedCategory == 'All' &&
-                              _searchQuery.isEmpty)
-                            SliverToBoxAdapter(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Padding(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 16,
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          Icons.star,
-                                          color: Colors.amber,
-                                          size: 24,
-                                        ),
-                                        SizedBox(width: 8),
-                                        Text(
-                                          'Top Picks This Week',
-                                          style: TextStyle(
-                                            fontSize: 20,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Container(
-                                    height: 220,
-                                    child: ListView.builder(
-                                      scrollDirection: Axis.horizontal,
-                                      padding: EdgeInsets.symmetric(
-                                        horizontal: 16,
-                                      ),
-                                      itemCount: _topDestinations.length,
-                                      itemBuilder: (context, index) {
-                                        final dest = _topDestinations[index];
-                                        return Container(
-                                          width: 280,
-                                          margin: EdgeInsets.only(right: 16),
-                                          child: DestinationCard(
-                                            name: dest['name'] as String,
-                                            location:
-                                                dest['province'] as String,
-                                            rating:
-                                                (dest['rating'] as num?)
-                                                    ?.toDouble() ??
-                                                0.0,
-                                            imageUrl:
-                                                dest['imageUrl'] as String?,
-                                            onTap: () =>
-                                                _showDestinationDetail(dest),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                  SizedBox(height: 20),
-                                ],
-                              ),
-                            ),
-
-                          // All Destinations Title
-                          SliverToBoxAdapter(
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 16),
-                              child: Text(
-                                _selectedCategory == 'All'
-                                    ? 'All Destinations (${_filteredDestinations.length})'
-                                    : '$_selectedCategory (${_filteredDestinations.length})',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-
-                          // Destinations Grid
-                          SliverPadding(
-                            padding: EdgeInsets.all(16),
-                            sliver: SliverGrid(
-                              gridDelegate:
-                                  SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: 2,
-                                    crossAxisSpacing: 16,
-                                    mainAxisSpacing: 16,
-                                    childAspectRatio: 0.75,
-                                  ),
-                              delegate: SliverChildBuilderDelegate((
-                                context,
-                                index,
-                              ) {
-                                final destination =
-                                    _filteredDestinations[index];
-                                final imageUrl =
-                                    destination['imageUrl'] as String?;
-                                final name = destination['name'] as String;
-                                final province =
-                                    destination['province'] as String;
-                                final rating =
-                                    (destination['rating'] as num?)
-                                        ?.toDouble() ??
-                                    0.0;
-                                final category =
-                                    destination['category'] as String;
-
-                                return GestureDetector(
-                                  onTap: () =>
-                                      _showDestinationDetail(destination),
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(20),
-                                      color: Color(0xFF1E3A8A),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.3),
-                                          blurRadius: 10,
-                                          offset: Offset(0, 5),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        // Image with CachedNetworkImage
-                                        Container(
-                                          height: 120,
-                                          width: double.infinity,
-                                          decoration: BoxDecoration(
-                                            borderRadius: BorderRadius.vertical(
-                                              top: Radius.circular(20),
-                                            ),
-                                          ),
-                                          child: ClipRRect(
-                                            borderRadius: BorderRadius.vertical(
-                                              top: Radius.circular(20),
-                                            ),
-                                            child: _buildImageWidget(
-                                              imageUrl,
-                                              category,
-                                            ),
-                                          ),
-                                        ),
-                                        Padding(
-                                          padding: EdgeInsets.all(12),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                name,
-                                                style: TextStyle(
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Colors.white,
-                                                ),
-                                                maxLines: 2,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                              SizedBox(height: 4),
-                                              Text(
-                                                province,
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: Colors.white
-                                                      .withOpacity(0.8),
-                                                ),
-                                              ),
-                                              SizedBox(height: 8),
-                                              Row(
-                                                children: [
-                                                  Icon(
-                                                    Icons.star,
-                                                    color: Colors.amber,
-                                                    size: 16,
-                                                  ),
-                                                  SizedBox(width: 4),
-                                                  Text(
-                                                    rating.toStringAsFixed(1),
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                      color: Colors.white,
-                                                    ),
-                                                  ),
-                                                  Spacer(),
-                                                  Container(
-                                                    padding:
-                                                        EdgeInsets.symmetric(
-                                                          horizontal: 8,
-                                                          vertical: 2,
-                                                        ),
-                                                    decoration: BoxDecoration(
-                                                      color: Colors.white
-                                                          .withOpacity(0.2),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            10,
-                                                          ),
-                                                    ),
-                                                    child: Text(
-                                                      category,
-                                                      style: TextStyle(
-                                                        fontSize: 10,
-                                                        color: Colors.white,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              }, childCount: _filteredDestinations.length),
-                            ),
-                          ),
-                        ],
+                    : ListView.builder(
+                        itemCount: displayResults.length,
+                        itemBuilder: (context, index) {
+                          return _buildPlaceItem(displayResults[index]);
+                        },
                       ),
               ),
             ],
@@ -847,245 +946,34 @@ class _ExploreScreenState extends State<ExploreScreen> {
       ),
     );
   }
-
-  Widget _buildImageWidget(String? imageUrl, String category) {
-    if (imageUrl != null && imageUrl.isNotEmpty) {
-      return CachedNetworkImage(
-        imageUrl: imageUrl,
-        fit: BoxFit.cover,
-        width: double.infinity,
-        height: 120,
-        placeholder: (context, url) => Container(
-          color: Color(0xFF007CF0),
-          child: Center(
-            child: CircularProgressIndicator(
-              color: Color(0xFF00DFD8),
-              strokeWidth: 2,
-            ),
-          ),
-        ),
-        errorWidget: (context, url, error) => _buildPlaceholderIcon(category),
-        fadeInDuration: Duration(milliseconds: 300),
-        fadeInCurve: Curves.easeIn,
-        memCacheHeight: 240, // Cache smaller image for grid
-        memCacheWidth: 320,
-        maxHeightDiskCache: 240,
-        maxWidthDiskCache: 320,
-      );
-    } else {
-      return _buildPlaceholderIcon(category);
-    }
-  }
-
-  Widget _buildPlaceholderIcon(String category) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF007CF0), Color(0xFF00DFD8)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Center(
-        child: Icon(_getCategoryIcon(category), color: Colors.white, size: 40),
-      ),
-    );
-  }
-
-  IconData _getCategoryIcon(String category) {
-    switch (category) {
-      case 'Beaches':
-        return Icons.beach_access;
-      case 'Hills':
-        return Icons.landscape;
-      case 'Cultural':
-        return Icons.account_balance;
-      case 'Wildlife':
-        return Icons.pets;
-      case 'Historical':
-        return Icons.history;
-      case 'Adventure':
-        return Icons.directions_bike;
-      case 'Religious':
-        return Icons.temple_buddhist;
-      case 'Cities':
-        return Icons.location_city;
-      case 'Villages':
-        return Icons.house;
-      default:
-        return Icons.place;
-    }
-  }
 }
 
-class DestinationDetailSheet extends StatefulWidget {
+class DestinationDetailSheet extends StatelessWidget {
   final Map<String, dynamic> destination;
 
   const DestinationDetailSheet({Key? key, required this.destination})
     : super(key: key);
 
   @override
-  _DestinationDetailSheetState createState() => _DestinationDetailSheetState();
-}
-
-class _DestinationDetailSheetState extends State<DestinationDetailSheet> {
-  bool _isFavorite = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkIfFavorite();
-  }
-
-  Future<void> _checkIfFavorite() async {
-    try {
-      final destinationService = Provider.of<DestinationDataService>(
-        context,
-        listen: false,
-      );
-      final isFavorite = await destinationService.isInWishlist(
-        widget.destination['id'] as String,
-      );
-      setState(() {
-        _isFavorite = isFavorite;
-      });
-    } catch (error) {
-      print('Error checking favorite status: $error');
-    }
-  }
-
-  Future<void> _toggleFavorite() async {
-    try {
-      final destinationService = Provider.of<DestinationDataService>(
-        context,
-        listen: false,
-      );
-
-      if (_isFavorite) {
-        await destinationService.removeFromWishlist(
-          widget.destination['id'] as String,
-        );
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: Color(0xFF00DFD8),
-            content: Text('Removed from favorites'),
-          ),
-        );
-      } else {
-        await destinationService.addToWishlist(
-          widget.destination['id'] as String,
-        );
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: Color(0xFF00DFD8),
-            content: Text('Added to favorites!'),
-          ),
-        );
-      }
-
-      setState(() {
-        _isFavorite = !_isFavorite;
-      });
-    } catch (error) {
-      print('Error toggling favorite: $error');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: Colors.red,
-          content: Text('Error: ${error.toString()}'),
-        ),
-      );
-    }
-  }
-
-  Widget _buildDetailImage(String? imageUrl) {
-    if (imageUrl != null && imageUrl.isNotEmpty) {
-      return CachedNetworkImage(
-        imageUrl: imageUrl,
-        fit: BoxFit.cover,
-        width: double.infinity,
-        height: 250,
-        placeholder: (context, url) => Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF007CF0), Color(0xFF00DFD8)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          child: Center(
-            child: CircularProgressIndicator(
-              color: Color(0xFF00DFD8),
-              strokeWidth: 2,
-            ),
-          ),
-        ),
-        errorWidget: (context, url, error) => Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF007CF0), Color(0xFF00DFD8)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          child: Center(
-            child: Icon(Icons.landscape, color: Colors.white, size: 80),
-          ),
-        ),
-        fadeInDuration: Duration(milliseconds: 500),
-        fadeInCurve: Curves.easeInOut,
-        memCacheHeight: 500,
-        memCacheWidth: 800,
-        maxHeightDiskCache: 1000,
-        maxWidthDiskCache: 1000,
-        useOldImageOnUrlChange: true,
-      );
-    } else {
-      return Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF007CF0), Color(0xFF00DFD8)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: Center(
-          child: Icon(Icons.landscape, color: Colors.white, size: 80),
-        ),
-      );
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final destination = widget.destination;
     final name = destination['name'] as String? ?? 'Destination';
-    final province = destination['province'] as String? ?? '';
-    final district = destination['district'] as String? ?? '';
-    final description = destination['description'] as String? ?? '';
+    final address = destination['address'] as String? ?? '';
     final rating = (destination['rating'] as num?)?.toDouble() ?? 0.0;
-    final bestTime = destination['bestTime'] as String? ?? '';
-    final entryFee = (destination['entryFee'] as num?)?.toDouble() ?? 0.0;
     final reviewCount = destination['reviewCount'] as int? ?? 0;
-    final category = destination['category'] as String? ?? '';
-    final tags = (destination['tags'] as List<dynamic>?)?.cast<String>() ?? [];
-    final weatherSuitability =
-        (destination['weatherSuitability'] as Map<String, dynamic>?) ??
-        {'sunny': 0, 'cloudy': 0, 'rainy': 0};
-    final imageUrl = destination['imageUrl'] as String?;
+    final photoUrl = destination['photoUrl'] as String?;
+    final description = destination['description'] as String? ?? '';
+    final city = destination['city'] as String? ?? '';
+    final province = destination['province'] as String? ?? '';
 
     return DraggableScrollableSheet(
-      initialChildSize: 0.9,
+      initialChildSize: 0.7,
       minChildSize: 0.5,
-      maxChildSize: 0.95,
+      maxChildSize: 0.9,
       builder: (context, scrollController) {
         return Container(
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF001F3F), Color(0xFF0074D9)],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+            color: Color(0xFF1E3A8A),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: SingleChildScrollView(
             controller: scrollController,
@@ -1106,72 +994,47 @@ class _DestinationDetailSheetState extends State<DestinationDetailSheet> {
                 ),
 
                 // Hero Image
-                Container(
-                  height: 250,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(30),
+                if (photoUrl != null)
+                  Container(
+                    height: 200,
+                    width: double.infinity,
+                    child: CachedNetworkImage(
+                      imageUrl: photoUrl,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => Container(
+                        color: Color(0xFF007CF0),
+                        child: Center(
+                          child: CircularProgressIndicator(color: Colors.white),
+                        ),
+                      ),
+                      errorWidget: (context, url, error) => Container(
+                        color: Color(0xFF007CF0),
+                        child: Center(
+                          child: Icon(
+                            Icons.place,
+                            color: Colors.white,
+                            size: 60,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                  child: Stack(
-                    children: [
-                      // Background Image
-                      _buildDetailImage(imageUrl),
-
-                      // Gradient Overlay
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.transparent,
-                              Colors.black.withOpacity(0.7),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      // Favorite Button
-                      Positioned(
-                        top: 16,
-                        right: 16,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.5),
-                            shape: BoxShape.circle,
-                          ),
-                          child: IconButton(
-                            onPressed: _toggleFavorite,
-                            icon: Icon(
-                              _isFavorite
-                                  ? Icons.favorite
-                                  : Icons.favorite_border,
-                              color: _isFavorite ? Colors.red : Colors.white,
-                              size: 30,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
 
                 // Content
                 Padding(
-                  padding: const EdgeInsets.all(24.0),
+                  padding: EdgeInsets.all(20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Title and Rating
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
                             child: Text(
                               name,
                               style: TextStyle(
-                                fontSize: 28,
+                                fontSize: 24,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
                               ),
@@ -1206,19 +1069,39 @@ class _DestinationDetailSheetState extends State<DestinationDetailSheet> {
                       SizedBox(height: 8),
 
                       // Location
+                      if (city.isNotEmpty || province.isNotEmpty)
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.location_city,
+                              color: Color(0xFF00DFD8),
+                              size: 16,
+                            ),
+                            SizedBox(width: 8),
+                            Text(
+                              city.isNotEmpty && province.isNotEmpty
+                                  ? '$city, $province Province'
+                                  : city.isNotEmpty
+                                  ? city
+                                  : province,
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+
+                      // Reviews
                       Row(
                         children: [
-                          Icon(
-                            Icons.location_on,
-                            color: Colors.white70,
-                            size: 18,
-                          ),
-                          SizedBox(width: 4),
+                          Icon(Icons.reviews, color: Colors.amber, size: 16),
+                          SizedBox(width: 8),
                           Text(
-                            '$province Province, $district',
+                            '${reviewCount} reviews',
                             style: TextStyle(
                               color: Colors.white70,
-                              fontSize: 16,
+                              fontSize: 14,
                             ),
                           ),
                         ],
@@ -1226,151 +1109,51 @@ class _DestinationDetailSheetState extends State<DestinationDetailSheet> {
 
                       SizedBox(height: 16),
 
-                      // Category Tags
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
+                      // Address
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          ...tags.map((tag) {
-                            return Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                tag,
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                          Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Color(0xFF00DFD8).withOpacity(0.2),
-                              border: Border.all(color: Color(0xFF00DFD8)),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
+                          Icon(
+                            Icons.location_on,
+                            color: Color(0xFF00DFD8),
+                            size: 20,
+                          ),
+                          SizedBox(width: 8),
+                          Expanded(
                             child: Text(
-                              category,
+                              address,
                               style: TextStyle(
-                                color: Color(0xFF00DFD8),
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                fontSize: 16,
                               ),
                             ),
                           ),
                         ],
                       ),
 
-                      SizedBox(height: 24),
+                      SizedBox(height: 20),
 
                       // Description
-                      Text(
-                        'Description',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      SizedBox(height: 8),
-                      Text(
-                        description,
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 16,
-                          height: 1.5,
-                        ),
-                      ),
-
-                      SizedBox(height: 24),
-
-                      // Details Grid
-                      Container(
-                        padding: EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Column(
-                          children: [
-                            Row(
-                              children: [
-                                _buildDetailItem(
-                                  Icons.calendar_today,
-                                  'Best Time',
-                                  bestTime,
-                                ),
-                                _buildDetailItem(
-                                  Icons.attach_money,
-                                  'Entry Fee',
-                                  entryFee == 0
-                                      ? 'Free'
-                                      : '\$${entryFee.toStringAsFixed(0)}',
-                                ),
-                              ],
-                            ),
-                            SizedBox(height: 16),
-                            Row(
-                              children: [
-                                _buildDetailItem(
-                                  Icons.reviews,
-                                  'Reviews',
-                                  reviewCount.toString(),
-                                ),
-                                _buildDetailItem(
-                                  Icons.wb_sunny,
-                                  'Weather',
-                                  _getWeatherSuitability(weatherSuitability),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      SizedBox(height: 24),
-
-                      // Weather Suitability
-                      Text(
-                        'Weather Suitability',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      SizedBox(height: 12),
-                      Row(
-                        children: [
-                          _buildWeatherScore(
-                            '☀️ Sunny',
-                            (weatherSuitability['sunny'] as int?) ?? 0,
+                      if (description.isNotEmpty) ...[
+                        Text(
+                          'Description',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
                           ),
-                          SizedBox(width: 16),
-                          _buildWeatherScore(
-                            '☁️ Cloudy',
-                            (weatherSuitability['cloudy'] as int?) ?? 0,
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          description,
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 16,
+                            height: 1.5,
                           ),
-                          SizedBox(width: 16),
-                          _buildWeatherScore(
-                            '🌧️ Rainy',
-                            (weatherSuitability['rainy'] as int?) ?? 0,
-                          ),
-                        ],
-                      ),
-
-                      SizedBox(height: 32),
+                        ),
+                        SizedBox(height: 20),
+                      ],
 
                       // Action Buttons
                       Row(
@@ -1412,7 +1195,13 @@ class _DestinationDetailSheetState extends State<DestinationDetailSheet> {
                             child: OutlinedButton.icon(
                               onPressed: () {
                                 Navigator.pop(context);
-                                _openMaps();
+                                // Open in maps
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    backgroundColor: Color(0xFF00DFD8),
+                                    content: Text('Opening in Google Maps...'),
+                                  ),
+                                );
                               },
                               style: OutlinedButton.styleFrom(
                                 side: BorderSide(color: Color(0xFF00DFD8)),
@@ -1446,82 +1235,5 @@ class _DestinationDetailSheetState extends State<DestinationDetailSheet> {
         );
       },
     );
-  }
-
-  Widget _buildDetailItem(IconData icon, String title, String value) {
-    return Expanded(
-      child: Column(
-        children: [
-          Icon(icon, color: Color(0xFF00DFD8), size: 24),
-          SizedBox(height: 8),
-          Text(title, style: TextStyle(color: Colors.white70, fontSize: 12)),
-          SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildWeatherScore(String condition, int score) {
-    return Expanded(
-      child: Container(
-        padding: EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(15),
-        ),
-        child: Column(
-          children: [
-            Text(
-              condition,
-              style: TextStyle(color: Colors.white, fontSize: 14),
-            ),
-            SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(5, (index) {
-                return Icon(
-                  Icons.star,
-                  color: index < score ? Color(0xFF00DFD8) : Colors.white30,
-                  size: 16,
-                );
-              }),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _getWeatherSuitability(Map<String, dynamic> suitability) {
-    final sunny = (suitability['sunny'] as int?) ?? 0;
-    final cloudy = (suitability['cloudy'] as int?) ?? 0;
-    final rainy = (suitability['rainy'] as int?) ?? 0;
-
-    final values = [sunny, cloudy, rainy];
-    values.sort((a, b) => b.compareTo(a));
-    return values[0] >= 4 ? 'Mostly Good' : 'Weather Dependent';
-  }
-
-  void _openMaps() {
-    final coordinates =
-        widget.destination['coordinates'] as Map<String, dynamic>?;
-    if (coordinates != null) {
-      final lat = coordinates['lat'];
-      final lng = coordinates['lng'];
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: Color(0xFF00DFD8),
-          content: Text('Opening maps for coordinates: $lat, $lng'),
-        ),
-      );
-    }
   }
 }
