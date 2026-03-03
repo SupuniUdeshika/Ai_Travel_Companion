@@ -33,6 +33,40 @@ class NotificationService {
     _initialized = true;
   }
 
+  // NEW: Check and request exact alarm permission for Android 12+
+  Future<bool> _canScheduleExactAlarms() async {
+    if (Theme.of(buildContext!).platform == TargetPlatform.android) {
+      final androidImplementation =
+          _notifications.resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+
+      if (androidImplementation != null) {
+        final canSchedule =
+            await androidImplementation.canScheduleExactNotifications();
+        return canSchedule ?? false;
+      }
+    }
+    return true; // iOS doesn't need this permission
+  }
+
+  // NEW: Request exact alarm permission
+  Future<bool> requestExactAlarmPermission() async {
+    if (Theme.of(buildContext!).platform == TargetPlatform.android) {
+      final androidImplementation =
+          _notifications.resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+
+      if (androidImplementation != null) {
+        return await androidImplementation.requestExactAlarmsPermission() ??
+            false;
+      }
+    }
+    return true;
+  }
+
+  // Helper to get context (set this from your main app)
+  static BuildContext? buildContext;
+
   Future<void> scheduleWeatherNotification({
     required String tripId,
     required String destination,
@@ -40,6 +74,13 @@ class NotificationService {
     required double lat,
     required double lng,
   }) async {
+    // Check permission first
+    final hasPermission = await _canScheduleExactAlarms();
+    if (!hasPermission) {
+      print('⚠️ Exact alarm permission not granted. Using inexact scheduling.');
+      // Continue with inexact scheduling instead of throwing error
+    }
+
     // Schedule notification 1 day before trip at 9 AM
     final notificationDate = DateTime(
       tripDate.year,
@@ -71,8 +112,13 @@ class NotificationService {
         ? 'Tomorrow: $condition, $temp°C. Perfect for your trip to $destination!'
         : 'Tomorrow: $condition, $temp°C. Consider indoor activities in $destination.';
 
+    // FIXED: Use inexact scheduling if permission not available
+    final scheduleMode = hasPermission
+        ? AndroidScheduleMode.exactAllowWhileIdle
+        : AndroidScheduleMode.inexactAllowWhileIdle;
+
     await _notifications.zonedSchedule(
-      tripId.hashCode, // FIXED: This is already an int
+      tripId.hashCode,
       title,
       body,
       tz.TZDateTime.from(notificationDate, tz.local),
@@ -87,7 +133,7 @@ class NotificationService {
         ),
         iOS: const DarwinNotificationDetails(),
       ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: scheduleMode, // FIXED: Dynamic schedule mode
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
     );
@@ -108,12 +154,17 @@ class NotificationService {
 
     if (reminderTime.isBefore(DateTime.now())) return;
 
-    // FIXED: Use a combination of string and timestamp for unique ID
     final notificationId =
         activityName.hashCode + activityDate.millisecondsSinceEpoch;
 
+    // Check permission
+    final hasPermission = await _canScheduleExactAlarms();
+    final scheduleMode = hasPermission
+        ? AndroidScheduleMode.exactAllowWhileIdle
+        : AndroidScheduleMode.inexactAllowWhileIdle;
+
     await _notifications.zonedSchedule(
-      notificationId, // FIXED: Now using int
+      notificationId,
       '⏰ Activity Reminder',
       'Your activity "$activityName" at $location starts in 2 hours!',
       tz.TZDateTime.from(reminderTime, tz.local),
@@ -128,7 +179,7 @@ class NotificationService {
         ),
         iOS: DarwinNotificationDetails(),
       ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: scheduleMode, // FIXED: Dynamic schedule mode
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
     );
@@ -149,11 +200,16 @@ class NotificationService {
 
     if (reminderTime.isBefore(DateTime.now())) return;
 
-    // FIXED: Use date milliseconds for unique ID
     final notificationId = date.millisecondsSinceEpoch;
 
+    // Check permission
+    final hasPermission = await _canScheduleExactAlarms();
+    final scheduleMode = hasPermission
+        ? AndroidScheduleMode.exactAllowWhileIdle
+        : AndroidScheduleMode.inexactAllowWhileIdle;
+
     await _notifications.zonedSchedule(
-      notificationId, // FIXED: Now using int
+      notificationId,
       '🌅 Good Morning!',
       'You have $activityCount activities planned today in $destination. Check your itinerary!',
       tz.TZDateTime.from(reminderTime, tz.local),
@@ -168,7 +224,7 @@ class NotificationService {
         ),
         iOS: DarwinNotificationDetails(),
       ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: scheduleMode, // FIXED: Dynamic schedule mode
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
     );
@@ -180,8 +236,7 @@ class NotificationService {
     bool isSuccess = true,
   }) async {
     await _notifications.show(
-      DateTime.now()
-          .millisecondsSinceEpoch, // FIXED: Use millisecondsSinceEpoch
+      DateTime.now().millisecondsSinceEpoch.remainder(100000),
       title,
       body,
       NotificationDetails(

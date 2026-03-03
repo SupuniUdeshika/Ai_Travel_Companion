@@ -610,29 +610,38 @@ class _AIPlannerScreenState extends State<AIPlannerScreen> {
         // Save trip to Firestore
         final tripId = await _saveTripToFirestore(user.uid);
 
-        // Schedule weather notification for trip start
-        final lat = _getLatitude(_selectedDestination!);
-        final lng = _getLongitude(_selectedDestination!);
+        // FIXED: Request notification permission first
+        final notificationService = NotificationService();
 
-        await NotificationService().scheduleWeatherNotification(
-          tripId:
-              '${_selectedDestination!['name']}_${DateTime.now().millisecondsSinceEpoch}',
-          destination: _selectedDestination!['name'] ?? 'Unknown',
-          tripDate: _startDate!,
-          lat: lat,
-          lng: lng,
-        );
+        // Try to schedule notifications, but don't fail if permissions are missing
+        try {
+          final lat = _getLatitude(_selectedDestination!);
+          final lng = _getLongitude(_selectedDestination!);
 
-        // Schedule daily reminders for each day with activities
-        for (int i = 0; i < _dailySelectedPlaces.length; i++) {
-          if (_dailySelectedPlaces[i]!.isNotEmpty) {
-            final date = _startDate!.add(Duration(days: i));
-            await NotificationService().scheduleDailyItineraryReminder(
-              destination: _selectedDestination!['name'] ?? 'Unknown',
-              date: date,
-              activityCount: _dailySelectedPlaces[i]!.length,
-            );
+          await notificationService.scheduleWeatherNotification(
+            tripId:
+                '${_selectedDestination!['name']}_${DateTime.now().millisecondsSinceEpoch}',
+            destination: _selectedDestination!['name'] ?? 'Unknown',
+            tripDate: _startDate!,
+            lat: lat,
+            lng: lng,
+          );
+
+          // Schedule daily reminders for each day with activities
+          for (int i = 0; i < _dailySelectedPlaces.length; i++) {
+            if (_dailySelectedPlaces[i]!.isNotEmpty) {
+              final date = _startDate!.add(Duration(days: i));
+              await notificationService.scheduleDailyItineraryReminder(
+                destination: _selectedDestination!['name'] ?? 'Unknown',
+                date: date,
+                activityCount: _dailySelectedPlaces[i]!.length,
+              );
+            }
           }
+        } catch (notificationError) {
+          // Log error but don't fail the trip save
+          print('⚠️ Notification scheduling failed: $notificationError');
+          print('Trip saved successfully but notifications may not work.');
         }
 
         // Dismiss loading
@@ -655,8 +664,7 @@ class _AIPlannerScreenState extends State<AIPlannerScreen> {
                   recommendedPlaces: _recommendedPlaces,
                   nearbyHotels: _nearbyHotels,
                   nearbyRestaurants: _nearbyRestaurants,
-                  dailySelectedPlaces:
-                      _dailySelectedPlaces, // Pass selected places
+                  dailySelectedPlaces: _dailySelectedPlaces,
                 ),
               ),
             );
