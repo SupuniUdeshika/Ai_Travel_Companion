@@ -6,6 +6,7 @@ import '../widgets/feature_card.dart';
 import '../widgets/weather_card.dart';
 import '../widgets/destination_card.dart';
 import 'login_screen.dart';
+import 'explore_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -32,7 +33,11 @@ class _HomeScreenState extends State<HomeScreen> {
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF001F3F), Color(0xFF0074D9), Color(0xFF7FDBFF)],
+            colors: [
+              Color(0xFF001F3F),
+              Color(0xFF0074D9),
+              Color.fromARGB(255, 22, 109, 143),
+            ],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -265,11 +270,13 @@ class _HomeScreenState extends State<HomeScreen> {
           subtitle: 'Destinations',
           icon: Icons.explore,
           color: Colors.white,
-          onTap: () => _showFeatureMessage(
-            context,
-            'Explore',
-            'Discover amazing places in Sri Lanka',
-          ),
+          onTap: () {
+            // Navigate to Explore Screen
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => ExploreScreen()),
+            );
+          },
         ),
         FeatureCard(
           title: 'Chat Assistant',
