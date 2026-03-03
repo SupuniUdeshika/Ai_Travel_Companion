@@ -9,6 +9,7 @@
     
     <!-- Add network state permission for checking internet connectivity -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     
     <application
         android:label="ai_travel_companion"

@@ -5,6 +5,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'screens/splash_screen.dart';
 import 'services/auth_service.dart';
 import 'services/destination_service.dart';
+import 'services/notification_service.dart';
+import 'screens/ai_planner_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -12,9 +14,9 @@ void main() async {
   try {
     await Firebase.initializeApp();
     await dotenv.load(fileName: ".env");
+    await NotificationService().initialize();
   } catch (e) {
     print("Error initializing: $e");
-    // Continue without .env for now
   }
 
   runApp(MyApp());

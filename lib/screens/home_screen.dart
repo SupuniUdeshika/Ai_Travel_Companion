@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:lottie/lottie.dart';
 import '../services/auth_service.dart';
+import '../services/weather_prediction_service.dart';
 import '../widgets/feature_card.dart';
 import '../widgets/weather_card.dart';
 import '../widgets/destination_card.dart';
 import 'login_screen.dart';
 import 'explore_screen.dart';
+import 'ai_planner_screen.dart';
+import 'chatbot_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -14,20 +17,9 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // Store BuildContext for safe use in async callbacks
-  BuildContext? _dialogContext;
-
-  @override
-  void dispose() {
-    // Clear the stored context when widget is disposed
-    _dialogContext = null;
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     final authService = Provider.of<AuthService>(context);
-    final user = authService.currentUser;
 
     return Scaffold(
       body: Container(
@@ -48,14 +40,12 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // App Bar with back button style
+                // App Bar
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     IconButton(
-                      onPressed: () {
-                        // Optional: Show confirmation dialog or exit app
-                      },
+                      onPressed: () {},
                       icon: Icon(Icons.menu, color: Colors.white),
                       padding: EdgeInsets.zero,
                     ),
@@ -179,7 +169,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 SizedBox(height: 30),
 
-                // Plan My Trip button - Same style as login/signup buttons
+                // Plan My Trip button
                 Container(
                   width: double.infinity,
                   height: 65,
@@ -188,10 +178,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: Colors.transparent,
                     child: InkWell(
                       onTap: () {
-                        _showFeatureMessage(
+                        Navigator.push(
                           context,
-                          'AI Planner',
-                          'AI Trip Planner coming soon!',
+                          MaterialPageRoute(
+                            builder: (context) => AIPlannerScreen(),
+                          ),
                         );
                       },
                       borderRadius: BorderRadius.circular(18),
@@ -256,14 +247,15 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         FeatureCard(
           title: 'AI Planner',
-          subtitle: 'Smart Itinerary',
+          subtitle: 'Weather-based Planning',
           icon: Icons.auto_awesome,
           color: Colors.white,
-          onTap: () => _showFeatureMessage(
-            context,
-            'AI Planner',
-            'Generate smart itineraries with AI',
-          ),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => AIPlannerScreen()),
+            );
+          },
         ),
         FeatureCard(
           title: 'Explore',
@@ -271,7 +263,6 @@ class _HomeScreenState extends State<HomeScreen> {
           icon: Icons.explore,
           color: Colors.white,
           onTap: () {
-            // Navigate to Explore Screen
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => ExploreScreen()),
@@ -280,27 +271,35 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         FeatureCard(
           title: 'Chat Assistant',
-          subtitle: '24/7 Help',
+          subtitle: 'AI Travel Guide',
           icon: Icons.chat,
           color: Colors.white,
-          onTap: () => _showFeatureMessage(
-            context,
-            'Chat Assistant',
-            'Get instant travel assistance',
-          ),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => ChatbotScreen()),
+            );
+          },
         ),
         FeatureCard(
-          title: 'Offline Maps',
-          subtitle: 'No Internet',
-          icon: Icons.map,
+          title: 'Weather Guide',
+          subtitle: 'Smart Predictions',
+          icon: Icons.wb_sunny,
           color: Colors.white,
-          onTap: () => _showFeatureMessage(
-            context,
-            'Offline Maps',
-            'Download maps for offline use',
-          ),
+          onTap: () => _showWeatherGuide(context),
         ),
       ],
+    );
+  }
+
+  void _showWeatherGuide(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return WeatherGuideSheet();
+      },
     );
   }
 
@@ -619,20 +618,16 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             TextButton(
               onPressed: () async {
-                // Close the dialog first
                 Navigator.pop(context);
 
                 try {
-                  // Get authService using the current context
                   final authService = Provider.of<AuthService>(
                     context,
                     listen: false,
                   );
 
-                  // Sign out
                   await authService.signOut();
 
-                  // Show success message
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       backgroundColor: Colors.green,
@@ -650,8 +645,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   );
 
-                  // Navigate to login screen IMMEDIATELY
-                  // Use Future.microtask for immediate navigation
                   Future.microtask(() {
                     Navigator.pushAndRemoveUntil(
                       context,
@@ -660,7 +653,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                   });
                 } catch (error) {
-                  // Handle error
                   _showErrorDialog(context, 'Logout Failed', error.toString());
                 }
               },
@@ -725,6 +717,162 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+// WeatherGuideSheet class එක HomeScreen class එකෙන් පිටතට ගෙනාවා
+class WeatherGuideSheet extends StatefulWidget {
+  @override
+  _WeatherGuideSheetState createState() => _WeatherGuideSheetState();
+}
+
+class _WeatherGuideSheetState extends State<WeatherGuideSheet> {
+  final WeatherPredictionService _weatherService = WeatherPredictionService();
+  List<Map<String, dynamic>> _recommendations = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRecommendations();
+  }
+
+  Future<void> _loadRecommendations() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final recommendations = await _weatherService.recommendDestinations(
+        tripDate: DateTime.now(),
+      );
+
+      setState(() {
+        _recommendations = recommendations;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading recommendations: $e');
+      setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.7,
+      minChildSize: 0.5,
+      maxChildSize: 0.9,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: BoxDecoration(
+            color: Color(0xFF1E3A8A),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              // Handle
+              Container(
+                margin: EdgeInsets.only(top: 8),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+
+              Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'Weather-Based Recommendations',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+
+              Expanded(
+                child: _isLoading
+                    ? Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFF00DFD8),
+                        ),
+                      )
+                    : ListView.builder(
+                        controller: scrollController,
+                        padding: EdgeInsets.all(16),
+                        itemCount: _recommendations.length,
+                        itemBuilder: (context, index) {
+                          final dest = _recommendations[index];
+                          final weather = dest['weatherPrediction'];
+
+                          return Card(
+                            margin: EdgeInsets.only(bottom: 12),
+                            color: Colors.white.withOpacity(0.1),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                            child: ListTile(
+                              leading: Container(
+                                padding: EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: weather['color'],
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  weather['icon'],
+                                  color: Colors.white,
+                                ),
+                              ),
+                              title: Text(
+                                dest['name'],
+                                style: TextStyle(color: Colors.white),
+                              ),
+                              subtitle: Text(
+                                '${weather['condition']} • ${weather['temperature']}°C',
+                                style: TextStyle(color: Colors.white70),
+                              ),
+                              trailing: Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: (dest['isRecommended'] as bool)
+                                      ? Colors.green.withOpacity(0.2)
+                                      : Colors.orange.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  '${dest['matchScore']?.toStringAsFixed(0)}% Match',
+                                  style: TextStyle(
+                                    color: (dest['isRecommended'] as bool)
+                                        ? Colors.green
+                                        : Colors.orange,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                              onTap: () {
+                                Navigator.pop(context);
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => AIPlannerScreen(),
+                                  ),
+                                );
+                              },
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

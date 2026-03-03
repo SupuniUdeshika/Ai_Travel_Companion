@@ -270,11 +270,11 @@ class GooglePlacesService {
           // Filter by keyword
           if (keyword.isEmpty ||
               place['name'].toString().toLowerCase().contains(
-                keyword.toLowerCase(),
-              ) ||
+                    keyword.toLowerCase(),
+                  ) ||
               place['description'].toString().toLowerCase().contains(
-                keyword.toLowerCase(),
-              )) {
+                    keyword.toLowerCase(),
+                  )) {
             samples.add(Map.from(place));
           }
         }
@@ -367,9 +367,9 @@ class GooglePlacesService {
           }
 
           // Extract city from address
-          final address =
-              (result['formatted_address'] ?? place['vicinity'] ?? '')
-                  as String;
+          final address = (result['formatted_address'] ??
+              place['vicinity'] ??
+              '') as String;
           final extractedCity = _extractCityFromAddress(address);
 
           // Get coordinates
@@ -413,12 +413,10 @@ class GooglePlacesService {
             'website': (result['website'] ?? '') as String,
             'rating': ((result['rating'] ?? place['rating'] ?? 0.0) as num)
                 .toDouble(),
-            'reviewCount':
-                ((result['user_ratings_total'] ??
-                            place['user_ratings_total'] ??
-                            0)
-                        as num)
-                    .toInt(),
+            'reviewCount': ((result['user_ratings_total'] ??
+                    place['user_ratings_total'] ??
+                    0) as num)
+                .toInt(),
             'openingHours': openingHours,
             'priceLevel': (result['price_level'] ?? 0) as int,
             'types': types,
