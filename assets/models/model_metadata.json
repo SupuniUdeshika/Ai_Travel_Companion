@@ -1,0 +1,50 @@
+{
+  "feature_names": [
+    "temperature_2m_max_C",
+    "temperature_2m_min_C",
+    "temperature_2m_mean_C",
+    "apparent_temperature_max_C",
+    "apparent_temperature_min_C",
+    "apparent_temperature_mean_C",
+    "daylight_duration_s",
+    "sunshine_duration_s",
+    "precipitation_sum_mm",
+    "rain_sum_mm",
+    "precipitation_hours_h",
+    "et0_fao_evapotranspiration_mm"
+  ],
+  "classes": [
+    "Clear",
+    "Drizzle",
+    "Partly_Cloudy",
+    "Rain"
+  ],
+  "scaler_mean": [
+    29.29746084146941,
+    23.120412481562127,
+    25.730643745171026,
+    33.56302152841189,
+    26.363540422841893,
+    29.236334024021915,
+    43644.651094595065,
+    34664.856898398546,
+    5.440476399522371,
+    5.440476399522371,
+    7.3365438645782115,
+    4.114438961859943
+  ],
+  "scaler_scale": [
+    3.349564782459071,
+    3.1649129406688594,
+    2.951086677802391,
+    4.179529445808762,
+    4.194459169582213,
+    3.833302829942716,
+    1098.78979146979,
+    8922.67058032891,
+    10.270718515611126,
+    10.270718515611126,
+    6.864976098140735,
+    1.1797380964002324
+  ]
+}
