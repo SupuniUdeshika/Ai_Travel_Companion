@@ -1,5 +1,3 @@
-// lib/screens/day_place_selection_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 

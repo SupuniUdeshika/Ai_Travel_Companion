@@ -245,7 +245,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Lottie.asset(
-                        'assets/animations/chatbot.json',
+                        'assets/animations/travel_animation.json',
                         height: 200,
                         width: 200,
                       ),
@@ -386,9 +386,8 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
         right: message.isUser ? 0 : 50,
       ),
       child: Row(
-        mainAxisAlignment: message.isUser
-            ? MainAxisAlignment.end
-            : MainAxisAlignment.start,
+        mainAxisAlignment:
+            message.isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
         children: [
           if (!message.isUser)
             CircleAvatar(

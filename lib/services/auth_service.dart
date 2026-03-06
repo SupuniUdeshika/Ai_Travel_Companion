@@ -28,7 +28,7 @@ class AuthService with ChangeNotifier {
     bool isVerified = false,
   }) async {
     try {
-      print('💾 Attempting to save user to Firestore: ${user.uid}');
+      print(' Attempting to save user to Firestore: ${user.uid}');
 
       final userData = {
         'uid': user.uid,

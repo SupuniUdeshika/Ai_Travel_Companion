@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart'; // ADD THIS IMPORT
+import 'package:intl/intl.dart';
 import '../services/weather_prediction_service.dart';
 import '../services/google_places_service.dart';
 import '../services/notification_service.dart';
@@ -135,7 +135,7 @@ class _AIPlannerScreenState extends State<AIPlannerScreen> {
         weatherPredictions: _weatherPredictions,
       );
 
-      // Get hotels and restaurants
+      // Get hotels and restaurant
       _nearbyHotels = await GooglePlacesService.searchPlaces(
         city: city,
         category: 'Hotels',
