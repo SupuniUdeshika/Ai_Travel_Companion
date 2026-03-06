@@ -1,15 +1,24 @@
+// lib/screens/home_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:lottie/lottie.dart';
 import '../services/auth_service.dart';
 import '../services/weather_prediction_service.dart';
+import '../services/location_service.dart';
+import '../services/trip_service.dart';
 import '../widgets/feature_card.dart';
 import '../widgets/weather_card.dart';
 import '../widgets/destination_card.dart';
+import '../widgets/trip_history_card.dart';
+import '../widgets/quick_help_popup.dart';
 import 'login_screen.dart';
 import 'explore_screen.dart';
 import 'ai_planner_screen.dart';
 import 'chatbot_screen.dart';
+import 'my_trips_screen.dart';
+import 'nearby_places_screen.dart';
+import 'user_guide_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -17,18 +26,216 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final LocationService _locationService = LocationService();
+  final TripService _tripService = TripService();
+  Map<String, double>? _currentLocation;
+  bool _isLoadingLocation = true;
+  List<Map<String, dynamic>> _recentTrips = [];
+  bool _isLoadingTrips = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _getCurrentLocation();
+    _loadRecentTrips();
+  }
+
+  Future<void> _getCurrentLocation() async {
+    try {
+      final location = await _locationService.getCurrentLocation();
+      setState(() {
+        _currentLocation = location;
+        _isLoadingLocation = false;
+      });
+    } catch (e) {
+      print('Error getting location: $e');
+      setState(() => _isLoadingLocation = false);
+    }
+  }
+
+  Future<void> _loadRecentTrips() async {
+    try {
+      final trips = await _tripService.getRecentTrips(limit: 3);
+      setState(() {
+        _recentTrips = trips;
+        _isLoadingTrips = false;
+      });
+    } catch (e) {
+      print('Error loading trips: $e');
+      setState(() => _isLoadingTrips = false);
+    }
+  }
+
+  // Method to show help options bottom sheet
+  void _showHelpOptions(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E3A8A),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle
+            Container(
+              margin: const EdgeInsets.only(top: 8),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'How can we help you?',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+
+            // Quick Guide Option
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF00DFD8).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.menu_book, color: Color(0xFF00DFD8)),
+              ),
+              title: const Text(
+                '📖 Full User Guide',
+                style:
+                    TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+              subtitle: Text(
+                'Step-by-step tutorial with tips',
+                style: TextStyle(color: Colors.white.withOpacity(0.7)),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const UserGuideScreen(),
+                  ),
+                );
+              },
+            ),
+
+            // Contextual Help Option
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.help, color: Colors.amber),
+              ),
+              title: const Text(
+                '❓ Quick Help',
+                style:
+                    TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+              subtitle: Text(
+                'Get help for current screen',
+                style: TextStyle(color: Colors.white.withOpacity(0.7)),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                QuickHelpPopup.showContextualHelp(context, screenName: 'home');
+              },
+            ),
+
+            // Tips & Tricks Option
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.tips_and_updates, color: Colors.green),
+              ),
+              title: const Text(
+                '💡 Pro Tips',
+                style:
+                    TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+              subtitle: Text(
+                'Expert advice for better experience',
+                style: TextStyle(color: Colors.white.withOpacity(0.7)),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _showProTips(context);
+              },
+            ),
+
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Method to show pro tips
+  void _showProTips(BuildContext context) {
+    QuickHelpPopup.show(
+      context: context,
+      title: '💡 Pro Tips',
+      message: 'Make the most of your AI Travel Companion',
+      items: [
+        QuickHelpItem(
+          icon: Icons.wb_sunny,
+          label: 'Weather Planning',
+          description: 'Plan outdoor activities on sunny days (Dec-Mar)',
+          color: Colors.amber,
+        ),
+        QuickHelpItem(
+          icon: Icons.notifications,
+          label: 'Enable Notifications',
+          description: 'Get reminders before your trips',
+          color: Colors.blue,
+        ),
+        QuickHelpItem(
+          icon: Icons.location_on,
+          label: 'Allow Location',
+          description: 'Better nearby place suggestions',
+          color: Colors.green,
+        ),
+        QuickHelpItem(
+          icon: Icons.save,
+          label: 'Save Trips',
+          description: 'Login to save itineraries permanently',
+          color: Colors.purple,
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authService = Provider.of<AuthService>(context);
 
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [
               Color(0xFF001F3F),
               Color(0xFF0074D9),
-              Color.fromARGB(255, 22, 109, 143),
+              Color(0xFF166D8F),
             ],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
@@ -36,7 +243,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         child: SafeArea(
           child: SingleChildScrollView(
-            padding: EdgeInsets.all(24),
+            padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -46,10 +253,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     IconButton(
                       onPressed: () {},
-                      icon: Icon(Icons.menu, color: Colors.white),
+                      icon: const Icon(Icons.menu, color: Colors.white),
                       padding: EdgeInsets.zero,
                     ),
-                    Text(
+                    const Text(
                       'AI Travel Companion',
                       style: TextStyle(
                         fontSize: 22,
@@ -58,7 +265,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     PopupMenuButton<String>(
-                      icon: Icon(Icons.more_vert, color: Colors.white),
+                      icon: const Icon(Icons.more_vert, color: Colors.white),
                       onSelected: (value) {
                         if (value == 'logout') {
                           _showLogoutConfirmation(context);
@@ -66,7 +273,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           _showProfileDialog(context, authService);
                         }
                       },
-                      itemBuilder: (context) => [
+                      itemBuilder: (context) => const [
                         PopupMenuItem(value: 'profile', child: Text('Profile')),
                         PopupMenuItem(value: 'logout', child: Text('Logout')),
                       ],
@@ -74,7 +281,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
 
-                SizedBox(height: 20),
+                const SizedBox(height: 20),
 
                 // Animation
                 Container(
@@ -82,10 +289,20 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Lottie.asset(
                     'assets/animations/travel_animation.json',
                     fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      color: Colors.transparent,
+                      child: const Center(
+                        child: Icon(
+                          Icons.travel_explore,
+                          color: Colors.white,
+                          size: 60,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
 
-                SizedBox(height: 20),
+                const SizedBox(height: 20),
 
                 // Welcome text
                 Text(
@@ -97,7 +314,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
 
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
 
                 Text(
                   'Ready to explore beautiful Sri Lanka?',
@@ -107,15 +324,114 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
 
-                SizedBox(height: 40),
+                const SizedBox(height: 30),
 
-                // Weather card
-                WeatherCard(),
+                // Weather Card
+                _isLoadingLocation
+                    ? Container(
+                        height: 100,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Center(
+                          child: CircularProgressIndicator(
+                            color: Color(0xFF00DFD8),
+                          ),
+                        ),
+                      )
+                    : WeatherCard(),
 
-                SizedBox(height: 30),
+                const SizedBox(height: 30),
+
+                // Nearby Places Button
+                if (_currentLocation != null)
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    child: Material(
+                      borderRadius: BorderRadius.circular(18),
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => NearbyPlacesScreen(
+                                latitude: _currentLocation!['lat']!,
+                                longitude: _currentLocation!['lng']!,
+                              ),
+                            ),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(18),
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(18),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF8B5CF6).withOpacity(0.4),
+                                blurRadius: 20,
+                                offset: const Offset(0, 10),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(
+                                  Icons.near_me,
+                                  color: Colors.white,
+                                  size: 28,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Discover Nearby Places',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Hotels, restaurants & attractions near you',
+                                      style: TextStyle(
+                                        color: Colors.white.withOpacity(0.8),
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(
+                                Icons.arrow_forward_ios,
+                                color: Colors.white,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
 
                 // Quick actions title
-                Text(
+                const Text(
                   'Quick Actions',
                   style: TextStyle(
                     fontSize: 20,
@@ -124,19 +440,19 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
 
-                SizedBox(height: 20),
+                const SizedBox(height: 20),
 
-                // Quick actions grid
+                // Quick actions grid with 6 cards (2 rows of 3)
                 _buildQuickActions(context),
 
-                SizedBox(height: 30),
+                const SizedBox(height: 30),
 
-                // Featured destinations header
+                // My Trips Section
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Featured Destinations',
+                    const Text(
+                      'My Recent Trips',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -145,14 +461,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     TextButton(
                       onPressed: () {
-                        _showFeatureMessage(
+                        Navigator.push(
                           context,
-                          'Explore All',
-                          'Browse all destinations coming soon!',
+                          MaterialPageRoute(
+                            builder: (context) => const MyTripsScreen(),
+                          ),
                         );
                       },
-                      child: Text(
-                        'See All',
+                      child: const Text(
+                        'View All',
                         style: TextStyle(
                           color: Color(0xFF00DFD8),
                           fontWeight: FontWeight.w500,
@@ -162,17 +479,123 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
 
-                SizedBox(height: 20),
+                const SizedBox(height: 20),
+
+                // Recent Trips List
+                _isLoadingTrips
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFF00DFD8),
+                        ),
+                      )
+                    : _recentTrips.isEmpty
+                        ? Container(
+                            padding: const EdgeInsets.all(24),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Column(
+                              children: [
+                                Icon(
+                                  Icons.map_outlined,
+                                  size: 48,
+                                  color: Colors.white.withOpacity(0.3),
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'No trips planned yet',
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.7),
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => AIPlannerScreen(),
+                                      ),
+                                    );
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF00DFD8),
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                  ),
+                                  child: const Text('Plan a Trip Now'),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: _recentTrips.length,
+                            itemBuilder: (context, index) {
+                              return TripHistoryCard(
+                                trip: _recentTrips[index],
+                                onTap: () {
+                                  Navigator.pushNamed(
+                                    context,
+                                    '/trip-details',
+                                    arguments: _recentTrips[index],
+                                  );
+                                },
+                              );
+                            },
+                          ),
+
+                const SizedBox(height: 30),
+
+                // Featured destinations header
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Popular Destinations',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ExploreScreen(),
+                          ),
+                        );
+                      },
+                      child: const Text(
+                        'Explore All',
+                        style: TextStyle(
+                          color: Color(0xFF00DFD8),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 20),
 
                 // Featured destinations list
                 _buildFeaturedDestinations(context),
 
-                SizedBox(height: 30),
+                const SizedBox(height: 30),
 
                 // Plan My Trip button
                 Container(
                   width: double.infinity,
                   height: 65,
+                  margin: const EdgeInsets.only(bottom: 20),
                   child: Material(
                     borderRadius: BorderRadius.circular(18),
                     color: Colors.transparent,
@@ -188,7 +611,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       borderRadius: BorderRadius.circular(18),
                       child: Container(
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(
+                          gradient: const LinearGradient(
                             colors: [Color(0xFF007CF0), Color(0xFF00DFD8)],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
@@ -196,13 +619,13 @@ class _HomeScreenState extends State<HomeScreen> {
                           borderRadius: BorderRadius.circular(18),
                           boxShadow: [
                             BoxShadow(
-                              color: Color(0xFF007CF0).withOpacity(0.4),
+                              color: const Color(0xFF007CF0).withOpacity(0.4),
                               blurRadius: 20,
-                              offset: Offset(0, 10),
+                              offset: const Offset(0, 10),
                             ),
                           ],
                         ),
-                        child: Center(
+                        child: const Center(
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
@@ -236,10 +659,11 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // Updated Quick Actions grid with User Guide card
   Widget _buildQuickActions(BuildContext context) {
     return GridView.count(
       shrinkWrap: true,
-      physics: NeverScrollableScrollPhysics(),
+      physics: const NeverScrollableScrollPhysics(),
       crossAxisCount: 2,
       crossAxisSpacing: 16,
       mainAxisSpacing: 16,
@@ -282,24 +706,53 @@ class _HomeScreenState extends State<HomeScreen> {
           },
         ),
         FeatureCard(
-          title: 'Weather Guide',
-          subtitle: 'Smart Predictions',
-          icon: Icons.wb_sunny,
+          title: 'My Trips',
+          subtitle: 'View Saved Trips',
+          icon: Icons.map,
           color: Colors.white,
-          onTap: () => _showWeatherGuide(context),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const MyTripsScreen()),
+            );
+          },
+        ),
+        FeatureCard(
+          title: 'Nearby',
+          subtitle: 'Places Near You',
+          icon: Icons.near_me,
+          color: Colors.white,
+          onTap: () {
+            if (_currentLocation != null) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => NearbyPlacesScreen(
+                    latitude: _currentLocation!['lat']!,
+                    longitude: _currentLocation!['lng']!,
+                  ),
+                ),
+              );
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Unable to get your location'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+            }
+          },
+        ),
+        FeatureCard(
+          title: 'User Guide',
+          subtitle: 'Learn How to Use',
+          icon: Icons.help_outline,
+          color: const Color(0xFFF59E0B),
+          onTap: () {
+            _showHelpOptions(context);
+          },
         ),
       ],
-    );
-  }
-
-  void _showWeatherGuide(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return WeatherGuideSheet();
-      },
     );
   }
 
@@ -351,52 +804,21 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _showFeatureMessage(BuildContext context, String title, String message) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: Color(0xFF1E3A8A),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: Row(
-            children: [
-              Icon(Icons.info_outline, color: Color(0xFF00DFD8), size: 24),
-              SizedBox(width: 10),
-              Text(
-                title,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          content: Text(message, style: TextStyle(color: Colors.white70)),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('OK', style: TextStyle(color: Color(0xFF00DFD8))),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   void _showDestinationDetail(BuildContext context, String name) {
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: Color(0xFF1E3A8A),
+          backgroundColor: const Color(0xFF1E3A8A),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
           title: Text(
             name,
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -407,42 +829,53 @@ class _HomeScreenState extends State<HomeScreen> {
                 width: double.infinity,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
-                  gradient: LinearGradient(
+                  gradient: const LinearGradient(
                     colors: [Color(0xFF007CF0), Color(0xFF00DFD8)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                 ),
-                child: Icon(Icons.landscape, color: Colors.white, size: 50),
+                child: const Icon(
+                  Icons.landscape,
+                  color: Colors.white,
+                  size: 50,
+                ),
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               Text(
                 'Discover the beauty of $name with our AI-powered travel guide.',
-                style: TextStyle(color: Colors.white70),
+                style: TextStyle(color: Colors.white.withOpacity(0.7)),
               ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text('Close', style: TextStyle(color: Colors.white70)),
+              child: const Text(
+                'Close',
+                style: TextStyle(color: Colors.white70),
+              ),
             ),
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(context);
-                _showFeatureMessage(
+                Navigator.push(
                   context,
-                  'Add to Trip',
-                  '$name added to your itinerary!',
+                  MaterialPageRoute(
+                    builder: (context) => AIPlannerScreen(),
+                  ),
                 );
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xFF00DFD8),
+                backgroundColor: const Color(0xFF00DFD8),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(15),
                 ),
               ),
-              child: Text('Add to Trip', style: TextStyle(color: Colors.white)),
+              child: const Text(
+                'Plan Trip',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         );
@@ -455,15 +888,19 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: Color(0xFF1E3A8A),
+          backgroundColor: const Color(0xFF1E3A8A),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
           title: Row(
             children: [
-              Icon(Icons.person, color: Color(0xFF00DFD8), size: 28),
-              SizedBox(width: 10),
-              Text(
+              Icon(
+                Icons.person,
+                color: const Color(0xFF00DFD8),
+                size: 28,
+              ),
+              const SizedBox(width: 10),
+              const Text(
                 'Profile',
                 style: TextStyle(
                   color: Colors.white,
@@ -480,10 +917,10 @@ class _HomeScreenState extends State<HomeScreen> {
               ListTile(
                 leading: CircleAvatar(
                   radius: 30,
-                  backgroundColor: Color(0xFF00DFD8),
+                  backgroundColor: const Color(0xFF00DFD8),
                   child: Text(
                     _getUserInitials(authService.userName),
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -492,7 +929,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 title: Text(
                   authService.userName ?? 'Traveler',
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -500,12 +937,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 subtitle: Text(
                   authService.userEmail ?? 'No email',
-                  style: TextStyle(color: Colors.white70),
+                  style: const TextStyle(color: Colors.white70),
                 ),
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
               Container(
-                padding: EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(15),
@@ -513,7 +950,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    const Text(
                       'Travel Stats',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
@@ -521,11 +958,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         fontSize: 16,
                       ),
                     ),
-                    SizedBox(height: 12),
+                    const SizedBox(height: 12),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        _buildStatItem('Trips', '0'),
+                        _buildStatItem('Trips', _recentTrips.length.toString()),
                         _buildStatItem('Places', '0'),
                         _buildStatItem('Badges', '0'),
                       ],
@@ -539,12 +976,15 @@ class _HomeScreenState extends State<HomeScreen> {
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
-                  color: Color(0xFF00DFD8),
+                  color: const Color(0xFF00DFD8),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Text(
+                child: const Text(
                   'Close',
                   style: TextStyle(
                     color: Colors.white,
@@ -573,14 +1013,17 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         Text(
           value,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.bold,
             color: Color(0xFF00DFD8),
           ),
         ),
-        SizedBox(height: 4),
-        Text(label, style: TextStyle(fontSize: 12, color: Colors.white70)),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12, color: Colors.white70),
+        ),
       ],
     );
   }
@@ -590,15 +1033,15 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: Color(0xFF1E3A8A),
+          backgroundColor: const Color(0xFF1E3A8A),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
           title: Row(
             children: [
-              Icon(Icons.logout, color: Colors.orange, size: 24),
-              SizedBox(width: 10),
-              Text(
+              const Icon(Icons.logout, color: Colors.orange, size: 24),
+              const SizedBox(width: 10),
+              const Text(
                 'Logout',
                 style: TextStyle(
                   color: Colors.white,
@@ -607,14 +1050,17 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-          content: Text(
+          content: const Text(
             'Are you sure you want to logout?',
             style: TextStyle(color: Colors.white70),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text('Cancel', style: TextStyle(color: Colors.white70)),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: Colors.white70),
+              ),
             ),
             TextButton(
               onPressed: () async {
@@ -628,41 +1074,52 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   await authService.signOut();
 
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      backgroundColor: Colors.green,
-                      content: Row(
-                        children: [
-                          Icon(Icons.check_circle, color: Colors.white),
-                          SizedBox(width: 10),
-                          Text('Logged out successfully'),
-                        ],
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        backgroundColor: Colors.green,
+                        content: Row(
+                          children: [
+                            Icon(Icons.check_circle, color: Colors.white),
+                            SizedBox(width: 10),
+                            Text('Logged out successfully'),
+                          ],
+                        ),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(10)),
+                        ),
                       ),
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  );
+                    );
 
-                  Future.microtask(() {
                     Navigator.pushAndRemoveUntil(
                       context,
-                      MaterialPageRoute(builder: (context) => LoginScreen()),
+                      MaterialPageRoute(
+                        builder: (context) => LoginScreen(),
+                      ),
                       (route) => false,
                     );
-                  });
+                  }
                 } catch (error) {
-                  _showErrorDialog(context, 'Logout Failed', error.toString());
+                  if (context.mounted) {
+                    _showErrorDialog(
+                      context,
+                      'Logout Failed',
+                      error.toString(),
+                    );
+                  }
                 }
               },
               child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.orange,
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Text(
+                child: const Text(
                   'Logout',
                   style: TextStyle(
                     color: Colors.white,
@@ -681,32 +1138,37 @@ class _HomeScreenState extends State<HomeScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Color(0xFF1E3A8A),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: const Color(0xFF1E3A8A),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
         title: Row(
           children: [
-            Icon(Icons.error_outline, color: Colors.orange, size: 24),
-            SizedBox(width: 10),
+            const Icon(Icons.error_outline, color: Colors.orange, size: 24),
+            const SizedBox(width: 10),
             Text(
               title,
-              style: TextStyle(
+              style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
               ),
             ),
           ],
         ),
-        content: Text(message, style: TextStyle(color: Colors.white70)),
+        content: Text(
+          message,
+          style: const TextStyle(color: Colors.white70),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               decoration: BoxDecoration(
-                color: Color(0xFF00DFD8),
+                color: const Color(0xFF00DFD8),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: Text(
+              child: const Text(
                 'OK',
                 style: TextStyle(
                   color: Colors.white,
@@ -717,162 +1179,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-    );
-  }
-}
-
-// WeatherGuideSheet class එක HomeScreen class එකෙන් පිටතට ගෙනාවා
-class WeatherGuideSheet extends StatefulWidget {
-  @override
-  _WeatherGuideSheetState createState() => _WeatherGuideSheetState();
-}
-
-class _WeatherGuideSheetState extends State<WeatherGuideSheet> {
-  final WeatherPredictionService _weatherService = WeatherPredictionService();
-  List<Map<String, dynamic>> _recommendations = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadRecommendations();
-  }
-
-  Future<void> _loadRecommendations() async {
-    setState(() => _isLoading = true);
-
-    try {
-      final recommendations = await _weatherService.recommendDestinations(
-        tripDate: DateTime.now(),
-      );
-
-      setState(() {
-        _recommendations = recommendations;
-        _isLoading = false;
-      });
-    } catch (e) {
-      print('Error loading recommendations: $e');
-      setState(() => _isLoading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.7,
-      minChildSize: 0.5,
-      maxChildSize: 0.9,
-      builder: (context, scrollController) {
-        return Container(
-          decoration: BoxDecoration(
-            color: Color(0xFF1E3A8A),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            children: [
-              // Handle
-              Container(
-                margin: EdgeInsets.only(top: 8),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-
-              Padding(
-                padding: EdgeInsets.all(16),
-                child: Text(
-                  'Weather-Based Recommendations',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-
-              Expanded(
-                child: _isLoading
-                    ? Center(
-                        child: CircularProgressIndicator(
-                          color: Color(0xFF00DFD8),
-                        ),
-                      )
-                    : ListView.builder(
-                        controller: scrollController,
-                        padding: EdgeInsets.all(16),
-                        itemCount: _recommendations.length,
-                        itemBuilder: (context, index) {
-                          final dest = _recommendations[index];
-                          final weather = dest['weatherPrediction'];
-
-                          return Card(
-                            margin: EdgeInsets.only(bottom: 12),
-                            color: Colors.white.withOpacity(0.1),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(15),
-                            ),
-                            child: ListTile(
-                              leading: Container(
-                                padding: EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: weather['color'],
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(
-                                  weather['icon'],
-                                  color: Colors.white,
-                                ),
-                              ),
-                              title: Text(
-                                dest['name'],
-                                style: TextStyle(color: Colors.white),
-                              ),
-                              subtitle: Text(
-                                '${weather['condition']} • ${weather['temperature']}°C',
-                                style: TextStyle(color: Colors.white70),
-                              ),
-                              trailing: Container(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: (dest['isRecommended'] as bool)
-                                      ? Colors.green.withOpacity(0.2)
-                                      : Colors.orange.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Text(
-                                  '${dest['matchScore']?.toStringAsFixed(0)}% Match',
-                                  style: TextStyle(
-                                    color: (dest['isRecommended'] as bool)
-                                        ? Colors.green
-                                        : Colors.orange,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ),
-                              onTap: () {
-                                Navigator.pop(context);
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => AIPlannerScreen(),
-                                  ),
-                                );
-                              },
-                            ),
-                          );
-                        },
-                      ),
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 }

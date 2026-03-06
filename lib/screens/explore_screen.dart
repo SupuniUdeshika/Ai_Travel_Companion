@@ -82,7 +82,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
   @override
   void initState() {
     super.initState();
-    _loadInitialPlaces(); // මුලින්ම Colombo places load කරන්න
+    _loadInitialPlaces();
   }
 
   @override
@@ -93,21 +93,18 @@ class _ExploreScreenState extends State<ExploreScreen> {
     super.dispose();
   }
 
-  // මුල් places load කිරීම සඳහා අලුත් function එකක්
   Future<void> _loadInitialPlaces() async {
     setState(() {
       _isLoading = true;
     });
 
     try {
-      // මුලින්ම Colombo city එකේ tourist attractions load කරන්න හදමු
       List<Map<String, dynamic>> places =
           await GooglePlacesService.searchPlaces(
-            city: 'Colombo',
-            category: 'Tourist Attractions',
-          );
+        city: 'Colombo',
+        category: 'Tourist Attractions',
+      );
 
-      // Tourist attractions නැත්නම්, general search එකක් කරමු
       if (places.isEmpty) {
         places = await GooglePlacesService.textSearch(
           'tourist attractions',
@@ -115,7 +112,6 @@ class _ExploreScreenState extends State<ExploreScreen> {
         );
       }
 
-      // තවමත් places නැත්නම්, sample data පාවිච්චි කරමු
       if (places.isEmpty) {
         places = _getSampleDestinations();
       }
@@ -229,14 +225,13 @@ class _ExploreScreenState extends State<ExploreScreen> {
       if (places.isEmpty) {
         places = _getSampleDestinations().where((place) {
           final nameMatch = place['name'].toString().toLowerCase().contains(
-            _searchQuery.toLowerCase(),
-          );
+                _searchQuery.toLowerCase(),
+              );
           final descMatch = place['description']
               .toString()
               .toLowerCase()
               .contains(_searchQuery.toLowerCase());
-          final categoryMatch =
-              _selectedCategory == 'All' ||
+          final categoryMatch = _selectedCategory == 'All' ||
               place['category'] == _selectedCategory;
           return (nameMatch || descMatch) && categoryMatch;
         }).toList();
@@ -252,14 +247,13 @@ class _ExploreScreenState extends State<ExploreScreen> {
       // Error එකක් වුණොත් sample data filter කරලා පෙන්වමු
       final sampleResults = _getSampleDestinations().where((place) {
         final nameMatch = place['name'].toString().toLowerCase().contains(
-          _searchQuery.toLowerCase(),
-        );
+              _searchQuery.toLowerCase(),
+            );
         final descMatch = place['description']
             .toString()
             .toLowerCase()
             .contains(_searchQuery.toLowerCase());
-        final categoryMatch =
-            _selectedCategory == 'All' ||
+        final categoryMatch = _selectedCategory == 'All' ||
             place['category'] == _selectedCategory;
         return (nameMatch || descMatch) && categoryMatch;
       }).toList();
@@ -749,9 +743,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final displayResults = _searchQuery.isNotEmpty
-        ? _onlineResults
-        : _filteredDestinations;
+    final displayResults =
+        _searchQuery.isNotEmpty ? _onlineResults : _filteredDestinations;
     final hasResults = displayResults.isNotEmpty;
 
     return Scaffold(
@@ -871,74 +864,75 @@ class _ExploreScreenState extends State<ExploreScreen> {
                         ),
                       )
                     : _searchingOnline
-                    ? ListView.builder(
-                        itemCount: 3,
-                        itemBuilder: (context, index) =>
-                            _buildShimmerPlaceholder(),
-                      )
-                    : !hasResults
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.search_off,
-                              size: 80,
-                              color: Colors.white70,
-                            ),
-                            SizedBox(height: 20),
-                            Text(
-                              _searchQuery.isNotEmpty
-                                  ? 'No places found for "$_searchQuery" in $_selectedCity'
-                                  : 'No destinations found in $_selectedCity',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            SizedBox(height: 10),
-                            Text(
-                              'Try a different search or city',
-                              style: TextStyle(color: Colors.white70),
-                            ),
-                            if (_searchQuery.isNotEmpty)
-                              Padding(
-                                padding: EdgeInsets.only(top: 20),
-                                child: ElevatedButton(
-                                  onPressed: () {
-                                    // Try searching in different city
-                                    if (_selectedCity != 'Colombo') {
-                                      setState(() {
-                                        _selectedCity = 'Colombo';
-                                      });
-                                    } else {
-                                      setState(() {
-                                        _selectedCity = 'Kandy';
-                                      });
-                                    }
-                                    _searchOnlinePlaces();
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Color(0xFF00DFD8),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
+                        ? ListView.builder(
+                            itemCount: 3,
+                            itemBuilder: (context, index) =>
+                                _buildShimmerPlaceholder(),
+                          )
+                        : !hasResults
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.search_off,
+                                      size: 80,
+                                      color: Colors.white70,
                                     ),
-                                  ),
-                                  child: Text(
-                                    'Try searching in ${_selectedCity == 'Colombo' ? 'Kandy' : 'Colombo'}',
-                                  ),
+                                    SizedBox(height: 20),
+                                    Text(
+                                      _searchQuery.isNotEmpty
+                                          ? 'No places found for "$_searchQuery" in $_selectedCity'
+                                          : 'No destinations found in $_selectedCity',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    SizedBox(height: 10),
+                                    Text(
+                                      'Try a different search or city',
+                                      style: TextStyle(color: Colors.white70),
+                                    ),
+                                    if (_searchQuery.isNotEmpty)
+                                      Padding(
+                                        padding: EdgeInsets.only(top: 20),
+                                        child: ElevatedButton(
+                                          onPressed: () {
+                                            // Try searching in different city
+                                            if (_selectedCity != 'Colombo') {
+                                              setState(() {
+                                                _selectedCity = 'Colombo';
+                                              });
+                                            } else {
+                                              setState(() {
+                                                _selectedCity = 'Kandy';
+                                              });
+                                            }
+                                            _searchOnlinePlaces();
+                                          },
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Color(0xFF00DFD8),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            'Try searching in ${_selectedCity == 'Colombo' ? 'Kandy' : 'Colombo'}',
+                                          ),
+                                        ),
+                                      ),
+                                  ],
                                 ),
+                              )
+                            : ListView.builder(
+                                itemCount: displayResults.length,
+                                itemBuilder: (context, index) {
+                                  return _buildPlaceItem(displayResults[index]);
+                                },
                               ),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        itemCount: displayResults.length,
-                        itemBuilder: (context, index) {
-                          return _buildPlaceItem(displayResults[index]);
-                        },
-                      ),
               ),
             ],
           ),
@@ -952,7 +946,7 @@ class DestinationDetailSheet extends StatelessWidget {
   final Map<String, dynamic> destination;
 
   const DestinationDetailSheet({Key? key, required this.destination})
-    : super(key: key);
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -1082,8 +1076,8 @@ class DestinationDetailSheet extends StatelessWidget {
                               city.isNotEmpty && province.isNotEmpty
                                   ? '$city, $province Province'
                                   : city.isNotEmpty
-                                  ? city
-                                  : province,
+                                      ? city
+                                      : province,
                               style: TextStyle(
                                 color: Colors.white70,
                                 fontSize: 14,
