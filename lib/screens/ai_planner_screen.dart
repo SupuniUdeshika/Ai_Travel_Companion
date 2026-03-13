@@ -168,14 +168,38 @@ class _AIPlannerScreenState extends State<AIPlannerScreen> {
     required String city,
     required List<Map<String, dynamic>> weatherPredictions,
   }) async {
+    // Use text search for better results across the entire city
     final allPlaces = await GooglePlacesService.searchPlaces(
       city: city,
       category: 'Tourist Attractions',
     );
 
+    // If no places found, try with broader search terms
+    if (allPlaces.isEmpty) {
+      print('⚠️ No places found for $city, trying broader search...');
+      // Try searching without category restriction
+      final broadPlaces = await GooglePlacesService.textSearch(
+        'places to visit',
+        city,
+      );
+
+      if (broadPlaces.isNotEmpty) {
+        return _categorizePlaces(broadPlaces, weatherPredictions);
+      }
+    }
+
+    return _categorizePlaces(allPlaces, weatherPredictions);
+  }
+
+  // Helper method to categorize places
+  List<Map<String, dynamic>> _categorizePlaces(
+    List<Map<String, dynamic>> places,
+    List<Map<String, dynamic>> weatherPredictions,
+  ) {
     // Categorize places by weather suitability
-    for (var place in allPlaces) {
+    for (var place in places) {
       final types = place['types'] as List<dynamic>? ?? [];
+      final name = place['name']?.toString().toLowerCase() ?? '';
 
       // Determine if place is indoor or outdoor based on types
       bool isIndoor = types.any((type) => [
@@ -186,6 +210,15 @@ class _AIPlannerScreenState extends State<AIPlannerScreen> {
             'movie_theater',
             'spa',
           ].contains(type));
+
+      // Also check name for indoor indicators
+      if (!isIndoor) {
+        isIndoor = name.contains('museum') ||
+            name.contains('temple') ||
+            name.contains('church') ||
+            name.contains('shopping') ||
+            name.contains('hotel');
+      }
 
       place['isIndoor'] = isIndoor;
 
@@ -204,7 +237,7 @@ class _AIPlannerScreenState extends State<AIPlannerScreen> {
       };
     }
 
-    return allPlaces;
+    return places;
   }
 
   void _showWeatherSuggestionPopup() {
