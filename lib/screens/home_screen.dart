@@ -30,8 +30,12 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final LocationService _locationService = LocationService();
   final TripService _tripService = TripService();
+  final WeatherPredictionService _weatherService = WeatherPredictionService();
+
   Map<String, double>? _currentLocation;
+  Map<String, dynamic>? _currentWeather;
   bool _isLoadingLocation = true;
+  bool _isLoadingWeather = true;
   List<Map<String, dynamic>> _recentTrips = [];
   bool _isLoadingTrips = true;
 
@@ -54,9 +58,14 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _initializeWeatherService();
     _getCurrentLocation();
     _loadRecentTrips();
     _loadPopularDestinations();
+  }
+
+  Future<void> _initializeWeatherService() async {
+    await _weatherService.initialize();
   }
 
   Future<void> _getCurrentLocation() async {
@@ -66,9 +75,37 @@ class _HomeScreenState extends State<HomeScreen> {
         _currentLocation = location;
         _isLoadingLocation = false;
       });
+
+      // Get weather after getting location
+      if (location != null) {
+        await _getCurrentWeather(location['lat']!, location['lng']!);
+      }
     } catch (e) {
       print('Error getting location: $e');
-      setState(() => _isLoadingLocation = false);
+      setState(() {
+        _isLoadingLocation = false;
+        _isLoadingWeather = false;
+      });
+    }
+  }
+
+  Future<void> _getCurrentWeather(double latitude, double longitude) async {
+    try {
+      final weather = await _weatherService.predictWeather(
+        latitude: latitude,
+        longitude: longitude,
+        date: DateTime.now(),
+      );
+
+      setState(() {
+        _currentWeather = weather;
+        _isLoadingWeather = false;
+      });
+    } catch (e) {
+      print('Error getting weather: $e');
+      setState(() {
+        _isLoadingWeather = false;
+      });
     }
   }
 
@@ -478,8 +515,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 const SizedBox(height: 30),
 
-                // Weather Card
-                _isLoadingLocation
+                // Weather Card - FIXED: Show current location weather like nearby_places_screen
+                _isLoadingLocation || _isLoadingWeather
                     ? Container(
                         height: 100,
                         decoration: BoxDecoration(
@@ -492,7 +529,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                       )
-                    : WeatherCard(),
+                    : _buildWeatherCard(),
 
                 const SizedBox(height: 30),
 
@@ -824,6 +861,79 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  // NEW: Weather Card Widget - Copied from nearby_places_screen
+  Widget _buildWeatherCard() {
+    if (_currentWeather == null) return Container();
+
+    final weather = _currentWeather!;
+    final isGood = weather['isGoodForTravel'] as bool;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 0),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isGood
+              ? [const Color(0xFF1E3A8A), const Color(0xFF0D9488)]
+              : [const Color(0xFF1E3A8A), const Color(0xFFDC2626)],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isGood ? const Color(0xFF00DFD8) : const Color(0xFFEF4444),
+          width: 2,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(
+              weather['icon'] as IconData? ?? Icons.wb_sunny,
+              color: weather['color'] as Color? ?? Colors.yellow,
+              size: 32,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Current Weather at Your Location',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 12,
+                  ),
+                ),
+                Text(
+                  '${weather['condition']} • ${weather['temperature']?.toStringAsFixed(0) ?? '28'}°C',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  weather['recommendation'] ?? '',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.7),
+                    fontSize: 12,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
