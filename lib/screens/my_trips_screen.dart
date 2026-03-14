@@ -341,26 +341,95 @@ class _MyTripsScreenState extends State<MyTripsScreen>
         return TripHistoryCard(
           trip: trip,
           onTap: () {
+            // FIXED: Safely handle data conversion for navigation
+            final destination = trip['destination'] ?? {};
+
+            // Safely parse dates
+            DateTime startDate;
+            DateTime endDate;
+
+            try {
+              startDate = DateTime.parse(
+                  trip['startDate'] ?? DateTime.now().toIso8601String());
+            } catch (e) {
+              startDate = DateTime.now();
+            }
+
+            try {
+              endDate = DateTime.parse(
+                  trip['endDate'] ?? DateTime.now().toIso8601String());
+            } catch (e) {
+              endDate = DateTime.now().add(const Duration(days: 1));
+            }
+
+            // Safely convert lists
+            List<Map<String, dynamic>> weatherPredictions = [];
+            if (trip['weatherPredictions'] != null) {
+              if (trip['weatherPredictions'] is List) {
+                weatherPredictions = List<Map<String, dynamic>>.from(
+                  (trip['weatherPredictions'] as List)
+                      .map((e) => e is Map<String, dynamic> ? e : {}),
+                );
+              }
+            }
+
+            List<Map<String, dynamic>> recommendedPlaces = [];
+            if (trip['recommendedPlaces'] != null) {
+              if (trip['recommendedPlaces'] is List) {
+                recommendedPlaces = List<Map<String, dynamic>>.from(
+                  (trip['recommendedPlaces'] as List)
+                      .map((e) => e is Map<String, dynamic> ? e : {}),
+                );
+              }
+            }
+
+            List<Map<String, dynamic>> nearbyHotels = [];
+            if (trip['nearbyHotels'] != null) {
+              if (trip['nearbyHotels'] is List) {
+                nearbyHotels = List<Map<String, dynamic>>.from(
+                  (trip['nearbyHotels'] as List)
+                      .map((e) => e is Map<String, dynamic> ? e : {}),
+                );
+              }
+            }
+
+            List<Map<String, dynamic>> nearbyRestaurants = [];
+            if (trip['nearbyRestaurants'] != null) {
+              if (trip['nearbyRestaurants'] is List) {
+                nearbyRestaurants = List<Map<String, dynamic>>.from(
+                  (trip['nearbyRestaurants'] as List)
+                      .map((e) => e is Map<String, dynamic> ? e : {}),
+                );
+              }
+            }
+
+            // Safely handle daily itinerary if it exists
+            Map<int, List<Map<String, dynamic>>>? dailySelectedPlaces;
+            if (trip['dailyItinerary'] != null) {
+              if (trip['dailyItinerary'] is Map) {
+                dailySelectedPlaces = {};
+                (trip['dailyItinerary'] as Map).forEach((key, value) {
+                  if (value is List) {
+                    dailySelectedPlaces![int.tryParse(key.toString()) ?? 0] =
+                        List<Map<String, dynamic>>.from(value
+                            .map((e) => e is Map<String, dynamic> ? e : {}));
+                  }
+                });
+              }
+            }
+
             Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) => TripDetailsScreen(
-                  destination: trip['destination'],
-                  startDate: DateTime.parse(trip['startDate']),
-                  endDate: DateTime.parse(trip['endDate']),
-                  weatherPredictions: List<Map<String, dynamic>>.from(
-                    trip['weatherPredictions'] ?? [],
-                  ),
-                  recommendedPlaces: List<Map<String, dynamic>>.from(
-                    trip['dailyItinerary']?.values.expand((e) => e).toList() ??
-                        [],
-                  ),
-                  nearbyHotels: List<Map<String, dynamic>>.from(
-                    trip['nearbyHotels'] ?? [],
-                  ),
-                  nearbyRestaurants: List<Map<String, dynamic>>.from(
-                    trip['nearbyRestaurants'] ?? [],
-                  ),
+                  destination: destination,
+                  startDate: startDate,
+                  endDate: endDate,
+                  weatherPredictions: weatherPredictions,
+                  recommendedPlaces: recommendedPlaces,
+                  nearbyHotels: nearbyHotels,
+                  nearbyRestaurants: nearbyRestaurants,
+                  dailySelectedPlaces: dailySelectedPlaces,
                 ),
               ),
             );
